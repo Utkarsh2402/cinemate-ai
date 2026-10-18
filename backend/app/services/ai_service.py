@@ -11,6 +11,7 @@ from app.models.theater import Screen, Theater
 from app.schemas.ai import (
     ExtractedFilters,
     MovieDiscoveryResponse,
+    InternetMovieSuggestion,
     GroupPlannerRequest,
     GroupPlannerResponse,
     GroupMovieRecommendation,
@@ -116,7 +117,7 @@ class AIService:
                     "contents": [{"parts": [{"text": prompt}]}],
                     "generationConfig": {"temperature": 0.1, "responseMimeType": "application/json"}
                 }
-                async with httpx.AsyncClient(timeout=6.0) as client:
+                async with httpx.AsyncClient(timeout=2.5) as client:
                     resp = await client.post(url, json=payload)
                     if resp.status_code == 200:
                         data = resp.json()
@@ -144,10 +145,199 @@ class AIService:
         return cls._heuristic_filter_extraction(query)
 
     @classmethod
+    async def get_internet_movie_suggestions(
+        cls, query: str, filters: ExtractedFilters, local_movies: List[Movie]
+    ) -> List[InternetMovieSuggestion]:
+        """
+        Queries Google Gemini LLM to discover and curate movies available anywhere across
+        the internet (Theatrical, Netflix, Prime Video, Apple TV, Hotstar, etc.) matching the user prompt.
+        """
+        internet_results: List[InternetMovieSuggestion] = []
+
+        # Local title lookup map for linking
+        local_lookup = {m.title.lower().strip(): str(m.id) for m in local_movies}
+
+        if settings.GEMINI_API_KEY:
+            try:
+                prompt = (
+                    "You are CineMate AI, a world-class global cinema & streaming curator.\n"
+                    f"The user is asking: \"{query}\"\n"
+                    f"Filters detected: Genre: {filters.genre or 'Any'}, Language: {filters.language or 'Any'}.\n\n"
+                    "Recommend 5 to 6 outstanding movies available on the internet or in cinemas matching this request. "
+                    "Include movies across platforms (Netflix, Prime Video, Disney+ Hotstar, Apple TV, Theaters).\n\n"
+                    "Return ONLY a valid JSON array of objects with this schema:\n"
+                    "[\n"
+                    "  {\n"
+                    "    \"title\": \"Movie Title\",\n"
+                    "    \"year\": 2023,\n"
+                    "    \"genres\": [\"Sci-Fi\", \"Action\"],\n"
+                    "    \"language\": \"English\",\n"
+                    "    \"rating\": 8.6,\n"
+                    "    \"duration\": \"148m\",\n"
+                    "    \"director\": \"Director Name\",\n"
+                    "    \"synopsis\": \"Two concise engaging sentences explaining why to watch it.\",\n"
+                    "    \"streaming_platform\": \"Netflix\",\n"
+                    "    \"where_to_watch\": \"Netflix, Prime Video\"\n"
+                    "  }\n"
+                    "]\n"
+                    "Do NOT return markdown backticks, explanations, or commentary. Only the raw JSON array."
+                )
+
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{settings.AI_MODEL}:generateContent?key={settings.GEMINI_API_KEY}"
+                payload = {
+                    "contents": [{"parts": [{"text": prompt}]}],
+                    "generationConfig": {"temperature": 0.4, "responseMimeType": "application/json"},
+                }
+
+                async with httpx.AsyncClient(timeout=8.0) as client:
+                    resp = await client.post(url, json=payload)
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        text_part = data["candidates"][0]["content"]["parts"][0]["text"]
+                        clean_json = text_part.strip().strip("```json").strip("```").strip()
+                        parsed = json.loads(clean_json)
+
+                        if isinstance(parsed, list):
+                            for item in parsed:
+                                title = item.get("title", "").strip()
+                                if not title:
+                                    continue
+
+                                # Check if this internet movie is also playing locally
+                                matched_id = None
+                                t_lower = title.lower()
+                                for l_title, l_id in local_lookup.items():
+                                    if l_title in t_lower or t_lower in l_title:
+                                        matched_id = l_id
+                                        break
+
+                                # Fallback aesthetic poster
+                                poster = item.get("poster_url")
+                                if not poster:
+                                    poster = "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=700&q=80"
+
+                                internet_results.append(
+                                    InternetMovieSuggestion(
+                                        title=title,
+                                        year=item.get("year", 2024),
+                                        genres=item.get("genres", ["Cinema"]),
+                                        language=item.get("language", filters.language or "English"),
+                                        rating=float(item.get("rating", 8.2)),
+                                        duration=str(item.get("duration", "135m")),
+                                        director=item.get("director"),
+                                        synopsis=item.get("synopsis", "Highly acclaimed cinematic experience."),
+                                        streaming_platform=item.get("streaming_platform", "Netflix"),
+                                        where_to_watch=item.get("where_to_watch", "Netflix / Prime Video / Theaters"),
+                                        poster_url=poster,
+                                        matched_local_movie_id=matched_id,
+                                    )
+                                )
+                            logger.info("Generated %d internet movie suggestions via Gemini", len(internet_results))
+            except Exception as e:
+                logger.warning("Gemini internet movie suggestion failed, falling back to curated list: %s", e)
+
+        # High quality fallback if Gemini is unreachable or returned empty
+        if not internet_results:
+            fallbacks = [
+                {
+                    "title": "Interstellar",
+                    "year": 2014,
+                    "genres": ["Sci-Fi", "Adventure", "Drama"],
+                    "language": "English",
+                    "rating": 8.7,
+                    "duration": "169m",
+                    "director": "Christopher Nolan",
+                    "synopsis": "When Earth becomes uninhabitable in the future, a farmer and ex-NASA pilot is tasked to pilot a spacecraft along with a team of researchers to find a new planet for humans.",
+                    "streaming_platform": "Prime Video",
+                    "where_to_watch": "Prime Video, JioCinema, Apple TV",
+                    "poster_url": "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=700&q=80",
+                },
+                {
+                    "title": "12th Fail",
+                    "year": 2023,
+                    "genres": ["Drama", "Biography"],
+                    "language": "Hindi",
+                    "rating": 8.9,
+                    "duration": "147m",
+                    "director": "Vidhu Vinod Chopra",
+                    "synopsis": "Based on the true story of Manoj Kumar Sharma, who overcame extreme poverty and restarts his academic journey to become an IPS officer.",
+                    "streaming_platform": "Disney+ Hotstar",
+                    "where_to_watch": "Disney+ Hotstar",
+                    "poster_url": "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=700&q=80",
+                },
+                {
+                    "title": "Dune: Part Two",
+                    "year": 2024,
+                    "genres": ["Sci-Fi", "Action", "Adventure"],
+                    "language": "English",
+                    "rating": 8.5,
+                    "duration": "166m",
+                    "director": "Denis Villeneuve",
+                    "synopsis": "Paul Atreides unites with Chani and the Fremen while seeking revenge against the conspirators who destroyed his family.",
+                    "streaming_platform": "Theaters & JioCinema",
+                    "where_to_watch": "Theaters, JioCinema, Prime Video",
+                    "poster_url": "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=700&q=80",
+                },
+                {
+                    "title": "Parasite",
+                    "year": 2019,
+                    "genres": ["Thriller", "Drama"],
+                    "language": "Korean",
+                    "rating": 8.5,
+                    "duration": "132m",
+                    "director": "Bong Joon Ho",
+                    "synopsis": "Greed and class discrimination threaten the newly formed symbiotic relationship between the wealthy Park family and the destitute Kim clan.",
+                    "streaming_platform": "SonyLIV",
+                    "where_to_watch": "SonyLIV, Prime Video",
+                    "poster_url": "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=700&q=80",
+                },
+                {
+                    "title": "RRR",
+                    "year": 2022,
+                    "genres": ["Action", "Drama", "History"],
+                    "language": "Telugu",
+                    "rating": 7.8,
+                    "duration": "187m",
+                    "director": "S.S. Rajamouli",
+                    "synopsis": "A fearless revolutionary and an officer in the British force, who once shared a deep bond, decide to join forces and chart out an inspiring path of freedom.",
+                    "streaming_platform": "Netflix",
+                    "where_to_watch": "Netflix, Zee5",
+                    "poster_url": "https://images.unsplash.com/photo-1533488765986-dfa2a9939acd?auto=format&fit=crop&w=700&q=80",
+                },
+            ]
+            for fb in fallbacks:
+                matched_id = None
+                t_lower = fb["title"].lower()
+                for l_title, l_id in local_lookup.items():
+                    if l_title in t_lower or t_lower in l_title:
+                        matched_id = l_id
+                        break
+
+                internet_results.append(
+                    InternetMovieSuggestion(
+                        title=fb["title"],
+                        year=fb["year"],
+                        genres=fb["genres"],
+                        language=fb["language"],
+                        rating=fb["rating"],
+                        duration=fb["duration"],
+                        director=fb["director"],
+                        synopsis=fb["synopsis"],
+                        streaming_platform=fb["streaming_platform"],
+                        where_to_watch=fb["where_to_watch"],
+                        poster_url=fb["poster_url"],
+                        matched_local_movie_id=matched_id,
+                    )
+                )
+
+        return internet_results
+
+    @classmethod
     async def discover_movies(cls, db: AsyncSession, query: str, city: str = "Delhi") -> MovieDiscoveryResponse:
         filters = await cls.extract_filters_with_llm(query)
         filters.city = city
 
+        # 1. Query Local Cinema Catalog
         stmt = select(Movie).where(Movie.is_active == True)
 
         if filters.language:
@@ -186,6 +376,15 @@ class AIService:
             fallback_stmt = fallback_stmt.order_by(Movie.rating.desc()).limit(5)
             movies = list((await db.execute(fallback_stmt)).scalars().all())
 
+        # 2. Query All Active Movies for Linking
+        all_movies_res = await db.execute(select(Movie).where(Movie.is_active == True))
+        all_local_movies = list(all_movies_res.scalars().all())
+
+        # 3. Get Internet-wide Recommendations (Theaters, Netflix, Prime, etc.)
+        internet_suggestions = await cls.get_internet_movie_suggestions(
+            query=query, filters=filters, local_movies=all_local_movies
+        )
+
         # Build natural language explanation of findings
         parts = []
         if filters.genre:
@@ -199,8 +398,8 @@ class AIService:
 
         criteria_str = ", ".join(parts) if parts else "your request"
         explanation = (
-            f"Found {len(movies)} movie(s) matching {criteria_str} in {city}. "
-            f"Results are sorted by critical rating and showtime availability."
+            f"Curated {len(internet_suggestions)} movie suggestions across the internet & streaming platforms, "
+            f"plus {len(movies)} cinema title(s) matching {criteria_str} in {city}."
         )
 
         movie_responses = [MovieResponse.model_validate(m) for m in movies]
@@ -209,6 +408,7 @@ class AIService:
             query=query,
             extracted_filters=filters,
             movies=movie_responses,
+            internet_suggestions=internet_suggestions,
             matched_show_count=len(movies),
             explanation=explanation,
         )

@@ -8,6 +8,7 @@ import type {
   TicketDetail,
   GroupPlannerResult,
   AdminAnalytics,
+  MovieDiscoveryResult,
 } from './types';
 
 const API_BASE = 'http://localhost:8000/api/v1';
@@ -114,6 +115,38 @@ export const api = {
     );
   },
 
+  // Razorpay Gateway
+  createRazorpayOrder: (bookingId: string) => {
+    return request<{
+      order_id: string;
+      amount: number;
+      currency: string;
+      key_id: string;
+      booking_id: string;
+      payment_id: string;
+    }>('/payments/razorpay/order', {
+      method: 'POST',
+      body: JSON.stringify({ booking_id: bookingId }),
+    });
+  },
+
+  verifyRazorpayPayment: (payload: {
+    booking_id: string;
+    razorpay_order_id: string;
+    razorpay_payment_id: string;
+    razorpay_signature: string;
+  }) => {
+    return request<{
+      status: string;
+      booking_id: string;
+      payment_id: string;
+      ticket_number?: string;
+    }>('/payments/razorpay/verify', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
   // Payments Sandbox
   checkout: (bookingId: string, paymentMethod = 'UPI', simulateFailure = false) => {
     return request<{
@@ -169,13 +202,7 @@ export const api = {
 
   // AI Features
   discoverMovies: (query: string, city = 'Delhi') => {
-    return request<{
-      query: string;
-      extracted_filters: any;
-      movies: Movie[];
-      matched_show_count: number;
-      explanation: string;
-    }>('/ai/discover', {
+    return request<MovieDiscoveryResult>('/ai/discover', {
       method: 'POST',
       body: JSON.stringify({ query, city }),
     });

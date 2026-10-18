@@ -46,6 +46,10 @@ class Settings(BaseSettings):
     # Payment Sandbox
     PAYMENT_WEBHOOK_SECRET: str = "cinemate_sandbox_whsec_secret_key_998877"
 
+    # Razorpay Payment Gateway
+    RAZORPAY_KEY_ID: str = ""
+    RAZORPAY_KEY_SECRET: str = ""
+
     # AI Configuration
     GEMINI_API_KEY: str = ""
     OPENAI_API_KEY: str = ""
@@ -61,7 +65,7 @@ class Settings(BaseSettings):
     ]
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(_BASE_DIR.parent / ".env", _BASE_DIR / ".env", ".env"),
         env_file_encoding="utf-8",
         case_sensitive=True,
         extra="allow",

@@ -61,27 +61,27 @@ export const BookingHistoryModal: React.FC<BookingHistoryModalProps> = ({ onClos
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'CONFIRMED':
-        return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">Confirmed</span>;
+        return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Confirmed</span>;
       case 'CANCELLED':
-        return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-500/20 text-rose-400 border border-rose-500/40">Cancelled</span>;
+        return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">Cancelled</span>;
       case 'PENDING':
-        return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/40">Pending</span>;
+        return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">Pending</span>;
       default:
-        return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-700 text-slate-300">Expired</span>;
+        return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-600 border border-slate-200">Expired</span>;
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fadeIn">
-      <div className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto glass-panel rounded-3xl p-6 sm:p-8 border border-slate-700 shadow-2xl">
-        <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-6">
-          <div className="flex items-center gap-2">
-            <Ticket className="w-5 h-5 text-rose-500" />
-            <h2 className="text-2xl font-extrabold text-white">My Movie Bookings</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
+      <div className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-2xl">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-6">
+          <div className="flex items-center gap-2.5">
+            <Ticket className="w-5 h-5 text-rose-600" />
+            <h2 className="text-2xl font-black text-slate-900">My Movie Bookings</h2>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors"
+            className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-400 hover:text-slate-700 flex items-center justify-center transition-colors font-bold text-sm"
           >
             ✕
           </button>
@@ -89,25 +89,25 @@ export const BookingHistoryModal: React.FC<BookingHistoryModalProps> = ({ onClos
 
         {/* Status Alerts */}
         {errorMessage && (
-          <div className="mb-4 p-3 rounded-xl bg-rose-500/20 border border-rose-500/50 text-rose-300 text-xs flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0" />
+          <div className="mb-4 p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
             <span>{errorMessage}</span>
           </div>
         )}
         {successMessage && (
-          <div className="mb-4 p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 text-xs">
+          <div className="mb-4 p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs">
             {successMessage}
           </div>
         )}
 
         {isLoading ? (
-          <div className="py-12 text-center text-slate-400 flex items-center justify-center gap-2">
-            <RefreshCw className="w-5 h-5 animate-spin text-rose-500" />
-            <span>Loading your booking history...</span>
+          <div className="py-16 text-center text-slate-400 flex items-center justify-center gap-2">
+            <RefreshCw className="w-5 h-5 animate-spin text-rose-600" />
+            <span className="text-xs font-semibold">Loading your booking history...</span>
           </div>
         ) : bookings.length === 0 ? (
-          <div className="py-12 text-center text-slate-400">
-            <p>You haven't made any movie reservations yet.</p>
+          <div className="py-16 text-center text-slate-500 bg-slate-50 rounded-2xl border border-slate-100">
+            <p className="text-sm font-semibold">You haven't made any movie reservations yet.</p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -115,40 +115,40 @@ export const BookingHistoryModal: React.FC<BookingHistoryModalProps> = ({ onClos
               const showTime = new Date(b.start_time);
 
               return (
-                <div key={b.id} className="glass-card rounded-2xl p-5 border border-slate-800 flex flex-col sm:flex-row justify-between gap-4">
+                <div key={b.id} className="bg-slate-50 rounded-2xl p-5 border border-slate-200 flex flex-col sm:flex-row justify-between gap-4">
                   <div className="space-y-1.5">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-mono font-bold text-slate-400">{b.booking_code}</span>
+                      <span className="text-xs font-mono font-bold text-slate-500">{b.booking_code}</span>
                       {getStatusBadge(b.status)}
                     </div>
-                    <h3 className="font-extrabold text-lg text-white">{b.movie_title}</h3>
-                    <p className="text-xs text-slate-400 flex items-center gap-1">
+                    <h3 className="font-extrabold text-lg text-slate-900">{b.movie_title}</h3>
+                    <p className="text-xs text-slate-500 flex items-center gap-1">
                       <MapPin className="w-3.5 h-3.5 text-rose-500" />
                       {b.theater_name} — {b.screen_name} ({b.format})
                     </p>
-                    <p className="text-xs text-slate-300 flex items-center gap-3 pt-1">
+                    <p className="text-xs text-slate-600 flex items-center gap-3 pt-1">
                       <span className="flex items-center gap-1">
-                        <Calendar className="w-3 h-3 text-cyan-400" />
+                        <Calendar className="w-3 h-3 text-slate-400" />
                         {showTime.toLocaleDateString([], { month: 'short', day: 'numeric' })}
                       </span>
                       <span className="flex items-center gap-1">
-                        <Clock className="w-3 h-3 text-cyan-400" />
+                        <Clock className="w-3 h-3 text-slate-400" />
                         {showTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
                       <span>
-                        Seats: <strong className="text-white">{b.seats.map((s) => `${s.row}${s.number}`).join(', ')}</strong>
+                        Seats: <strong className="text-slate-900">{b.seats.map((s) => `${s.row}${s.number}`).join(', ')}</strong>
                       </span>
                     </p>
                   </div>
 
-                  <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-2 pt-3 sm:pt-0 border-t sm:border-t-0 border-slate-800">
-                    <p className="text-base font-extrabold text-rose-400">₹{b.total_amount.toFixed(2)}</p>
+                  <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-2 pt-3 sm:pt-0 border-t sm:border-t-0 border-slate-200">
+                    <p className="text-base font-black text-rose-600">₹{b.total_amount.toFixed(2)}</p>
 
                     <div className="flex gap-2">
                       {b.status === 'CONFIRMED' && b.ticket_number && (
                         <button
                           onClick={() => handleOpenTicket(b.ticket_number)}
-                          className="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
+                          className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 transition-colors shadow-sm"
                         >
                           View Pass
                         </button>
@@ -158,7 +158,7 @@ export const BookingHistoryModal: React.FC<BookingHistoryModalProps> = ({ onClos
                         <button
                           disabled={cancellingId === b.id}
                           onClick={() => handleCancelBooking(b.id)}
-                          className="px-3 py-1.5 rounded-lg text-xs font-bold bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 border border-rose-500/40 transition-colors"
+                          className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 transition-colors"
                         >
                           {cancellingId === b.id ? 'Cancelling...' : 'Cancel'}
                         </button>

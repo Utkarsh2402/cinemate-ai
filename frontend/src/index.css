@@ -4,52 +4,54 @@
 
 @layer base {
   body {
-    background-color: #070913;
-    color: #F8FAFC;
+    background-color: #F8FAFC;
+    color: #0F172A;
     overflow-x: hidden;
   }
 }
 
-/* Glassmorphism styling */
+/* Professional White & Light Panel Styling */
 .glass-panel {
-  background: rgba(15, 20, 38, 0.7);
+  background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid #E2E8F0;
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);
 }
 
 .glass-card {
-  background: rgba(26, 34, 62, 0.5);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.06), 0 1px 2px -1px rgba(15, 23, 42, 0.06);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .glass-card:hover {
-  border-color: rgba(229, 9, 20, 0.4);
-  transform: translateY(-3px);
+  border-color: #F43F5E;
+  box-shadow: 0 12px 28px -6px rgba(244, 63, 94, 0.15), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
+  transform: translateY(-4px);
 }
 
 /* Curved cinema screen visual */
 .screen-curve {
   height: 28px;
-  border-top: 4px solid #06B6D4;
+  border-top: 4px solid #0284C7;
   border-radius: 50% 50% 0 0;
-  box-shadow: 0 -8px 24px -2px rgba(6, 182, 212, 0.4);
+  box-shadow: 0 -8px 24px -2px rgba(2, 132, 199, 0.35);
 }
 
-/* Custom scrollbars */
+/* Custom scrollbars for clean light mode */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #070913;
+  background: #F1F5F9;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1A223E;
+  background: #CBD5E1;
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #27345C;
+  background: #94A3B8;
 }

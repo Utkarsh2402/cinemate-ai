@@ -33,3 +33,24 @@ class RefundResponse(BaseModel):
     amount: float
     status: str
     reason: Optional[str] = None
+
+
+class RazorpayOrderRequest(BaseModel):
+    booking_id: str
+
+
+class RazorpayOrderResponse(BaseModel):
+    order_id: str
+    amount: int  # in paise
+    currency: str
+    key_id: str
+    booking_id: str
+    payment_id: str
+
+
+class RazorpayVerifyRequest(BaseModel):
+    booking_id: str
+    razorpay_order_id: str
+    razorpay_payment_id: str
+    razorpay_signature: str
+

@@ -82,7 +82,7 @@ const AppContent: React.FC = () => {
   const featuredMovie = movies.length > 0 ? movies[0] : null;
 
   return (
-    <div className="min-h-screen bg-[#070913] text-slate-100 flex flex-col justify-between selection:bg-rose-500 selection:text-white">
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col justify-between selection:bg-rose-500 selection:text-white">
       {/* Top Navbar */}
       <Navbar
         currentCity={currentCity}
@@ -106,27 +106,31 @@ const AppContent: React.FC = () => {
         {/* Section Header & Genre Filter Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
-            <h2 className="text-2xl font-extrabold text-white flex items-center gap-2">
-              <Film className="w-5 h-5 text-rose-500" />
+            <h2 className="text-2xl font-black text-slate-900 flex items-center gap-2">
+              <Film className="w-5 h-5 text-rose-600" />
               Now Showing in {currentCity}
             </h2>
-            <p className="text-xs text-slate-400">Live cinema inventory with verified reserved seating</p>
+            <p className="text-xs text-slate-500">Live cinema inventory with verified reserved seating</p>
           </div>
 
           {/* Genre Filter Pills */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full">
-            <Filter className="w-3.5 h-3.5 text-slate-500 flex-shrink-0 mr-1" />
+            <Filter className="w-3.5 h-3.5 text-slate-400 flex-shrink-0 mr-1" />
             {genres.map((g) => (
               <button
                 key={g}
                 onClick={() => setSelectedGenre(g)}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
                   selectedGenre === g
-                    ? g === 'Netflix' ? 'bg-red-600 text-white shadow-lg border border-red-500' : 'bg-rose-600 text-white shadow-glow-red'
-                    : g === 'Netflix' ? 'bg-red-950/60 hover:bg-red-900/60 text-red-400 hover:text-red-300 border border-red-900/80' : 'bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800'
+                    ? g === 'Netflix'
+                      ? 'bg-red-600 text-white shadow-md shadow-red-200 border border-red-600'
+                      : 'bg-rose-600 text-white shadow-md shadow-rose-200 border border-rose-600'
+                    : g === 'Netflix'
+                    ? 'bg-red-50 hover:bg-red-100 text-red-600 border border-red-200'
+                    : 'bg-white hover:bg-slate-100 text-slate-600 hover:text-slate-900 border border-slate-200 shadow-sm'
                 }`}
               >
-                {g === 'Netflix' && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />}
+                {g === 'Netflix' && <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse" />}
                 {g === 'Netflix' ? 'Netflix Live' : g}
               </button>
             ))}
@@ -135,15 +139,15 @@ const AppContent: React.FC = () => {
 
         {/* Movie Grid */}
         {isLoadingMovies ? (
-          <div className="py-24 text-center text-slate-400 flex flex-col items-center justify-center gap-3">
-            <RefreshCw className="w-8 h-8 animate-spin text-rose-500" />
-            <p className="text-sm font-medium">Syncing live theater inventory...</p>
+          <div className="py-24 text-center text-slate-500 flex flex-col items-center justify-center gap-3">
+            <RefreshCw className="w-8 h-8 animate-spin text-rose-600" />
+            <p className="text-sm font-semibold">Syncing live catalog...</p>
           </div>
         ) : movies.length === 0 ? (
-          <div className="py-20 text-center glass-card rounded-3xl p-8 border border-slate-800">
-            <Film className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-            <h3 className="text-lg font-bold text-white mb-1">No movies found</h3>
-            <p className="text-xs text-slate-400 mb-4">
+          <div className="py-20 text-center bg-white rounded-3xl p-8 border border-slate-200 shadow-sm">
+            <Film className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+            <h3 className="text-lg font-bold text-slate-900 mb-1">No movies found</h3>
+            <p className="text-xs text-slate-500 mb-4">
               Try adjusting your search criteria, selecting another city, or ask AI Discover.
             </p>
             <button
@@ -151,7 +155,7 @@ const AppContent: React.FC = () => {
                 setSearchQuery('');
                 setSelectedGenre('All');
               }}
-              className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
+              className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition-colors"
             >
               Reset Filters
             </button>
@@ -166,12 +170,12 @@ const AppContent: React.FC = () => {
       </main>
 
       {/* Footer */}
-      <footer className="w-full border-t border-slate-800/80 bg-slate-950/80 py-8 px-4 text-center text-xs text-slate-500">
+      <footer className="w-full border-t border-slate-200 bg-white py-8 px-4 text-center text-xs text-slate-500">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <p>© 2026 CineMate AI — Production-Grade Movie Ticket Reservation Architecture.</p>
-          <div className="flex items-center gap-4 text-slate-400">
+          <div className="flex items-center gap-4 text-slate-500 font-medium">
             <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               Redis Hold Locking Active
             </span>
             <span>•</span>

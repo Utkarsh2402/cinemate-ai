@@ -34,39 +34,40 @@ export const ShowtimeSelector: React.FC<ShowtimeSelectorProps> = ({
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
-      <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto glass-panel rounded-3xl p-6 sm:p-8 border border-slate-700/80 shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
+      <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-2xl">
         {/* Header */}
-        <div className="flex items-start justify-between border-b border-slate-800 pb-4 mb-6">
+        <div className="flex items-start justify-between border-b border-slate-100 pb-5 mb-5">
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 font-semibold border border-rose-500/30">
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="text-xs px-2.5 py-0.5 rounded-md bg-rose-50 text-rose-600 font-bold border border-rose-200">
                 {movie.certification}
               </span>
-              <span className="text-xs text-slate-400">{movie.duration_minutes} mins</span>
-              <span className="text-xs text-slate-400">• {movie.genres.join(', ')}</span>
+              <span className="text-xs text-slate-500 font-semibold">{movie.duration_minutes} mins</span>
+              <span className="text-xs text-slate-400">•</span>
+              <span className="text-xs text-slate-600">{movie.genres.join(', ')}</span>
             </div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-white">{movie.title}</h2>
+            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">{movie.title}</h2>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors"
+            className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-400 hover:text-slate-700 flex items-center justify-center transition-colors font-bold text-sm"
           >
             ✕
           </button>
         </div>
 
         {/* Date Selector Tabs */}
-        <div className="flex items-center gap-3 mb-6 pb-2 border-b border-slate-800">
-          <Calendar className="w-4 h-4 text-rose-500 mr-1" />
+        <div className="flex items-center gap-2.5 mb-6 pb-3 border-b border-slate-100">
+          <Calendar className="w-4 h-4 text-rose-600 mr-1" />
           {dates.map((d) => (
             <button
               key={d.offset}
               onClick={() => setSelectedDayOffset(d.offset)}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
                 selectedDayOffset === d.offset
-                  ? 'bg-rose-600 text-white shadow-glow-red'
-                  : 'bg-slate-900/80 hover:bg-slate-800 text-slate-300 border border-slate-800'
+                  ? 'bg-rose-600 text-white shadow-md shadow-rose-200'
+                  : 'bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200'
               }`}
             >
               {d.label}
@@ -75,25 +76,25 @@ export const ShowtimeSelector: React.FC<ShowtimeSelectorProps> = ({
         </div>
 
         {/* Theaters List */}
-        <div className="space-y-6">
+        <div className="space-y-4">
           {Object.keys(theatersMap).length === 0 ? (
-            <div className="text-center py-12 text-slate-400">
-              <Clock className="w-8 h-8 mx-auto mb-2 text-slate-500" />
-              <p>No showtimes scheduled for this date in your selected city.</p>
+            <div className="text-center py-12 text-slate-400 bg-slate-50 rounded-2xl border border-slate-100">
+              <Clock className="w-8 h-8 mx-auto mb-2 text-slate-400" />
+              <p className="text-sm font-semibold">No showtimes scheduled for this date in your selected city.</p>
             </div>
           ) : (
             Object.values(theatersMap).map(({ theater, shows: tShows }) => (
-              <div key={theater?.id || 't'} className="glass-card rounded-2xl p-5 border border-slate-800">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+              <div key={theater?.id || 't'} className="bg-slate-50 rounded-2xl p-5 border border-slate-200 hover:border-slate-300 transition-all">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 pb-3 border-b border-slate-200">
                   <div>
-                    <h4 className="font-bold text-white text-base sm:text-lg flex items-center gap-2">
+                    <h4 className="font-extrabold text-slate-900 text-base sm:text-lg flex items-center gap-2">
                       {theater?.name || 'CineMate Cinema'}
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700 font-medium">
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 font-bold">
                         {theater?.chain || 'Premium'}
                       </span>
                     </h4>
-                    <p className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
-                      <MapPin className="w-3 h-3 text-rose-400" />
+                    <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
+                      <MapPin className="w-3.5 h-3.5 text-rose-500" />
                       {theater?.address || 'District Centre, Delhi'}
                     </p>
                   </div>
@@ -101,7 +102,7 @@ export const ShowtimeSelector: React.FC<ShowtimeSelectorProps> = ({
                   {/* Amenities */}
                   <div className="flex flex-wrap gap-1.5">
                     {theater?.amenities?.slice(0, 3).map((a: string) => (
-                      <span key={a} className="text-[10px] px-2 py-0.5 rounded bg-slate-900/90 text-cyan-300 border border-cyan-500/20">
+                      <span key={a} className="text-[10px] px-2 py-0.5 rounded bg-white text-slate-600 border border-slate-200 font-medium">
                         {a}
                       </span>
                     ))}
@@ -109,7 +110,7 @@ export const ShowtimeSelector: React.FC<ShowtimeSelectorProps> = ({
                 </div>
 
                 {/* Showtimes Pill Grid */}
-                <div className="flex flex-wrap gap-3">
+                <div className="flex flex-wrap gap-2.5">
                   {tShows.map((show) => {
                     const st = new Date(show.start_time);
                     const timeStr = st.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -119,13 +120,13 @@ export const ShowtimeSelector: React.FC<ShowtimeSelectorProps> = ({
                       <button
                         key={show.id}
                         onClick={() => onSelectShow(show)}
-                        className="group flex flex-col items-center justify-center px-4 py-2.5 rounded-xl bg-slate-900/90 hover:bg-rose-600/20 border border-slate-700/80 hover:border-rose-500 transition-all text-center"
+                        className="group flex flex-col items-center justify-center px-4 py-2.5 rounded-xl bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-400 transition-all text-center shadow-sm"
                       >
-                        <span className="text-sm font-bold text-white group-hover:text-rose-400 transition-colors">
+                        <span className="text-sm font-extrabold text-slate-900 group-hover:text-rose-600 transition-colors">
                           {timeStr}
                         </span>
-                        <div className="flex items-center gap-1.5 text-[10px] mt-1 text-slate-400">
-                          <span className="font-semibold text-cyan-400">{show.format}</span>
+                        <div className="flex items-center gap-1.5 text-[10px] mt-1 text-slate-500">
+                          <span className="font-bold text-rose-600">{show.format}</span>
                           <span>•</span>
                           <span>from ₹{minPrice}</span>
                         </div>

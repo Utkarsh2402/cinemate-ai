@@ -5,7 +5,13 @@ from sqlalchemy import select
 from app.models.payment import Payment, PaymentStatus, Refund, RefundStatus
 from app.models.booking import Booking, BookingStatus, BookingSeat
 from app.models.reservation import SeatHold
-from app.schemas.payment import CheckoutRequest, CheckoutResponse, WebhookPayload
+from app.schemas.payment import (
+    CheckoutRequest,
+    CheckoutResponse,
+    WebhookPayload,
+    RazorpayOrderResponse,
+    RazorpayVerifyRequest,
+)
 from app.services.booking_service import BookingService
 from app.common.security import verify_webhook_signature
 from app.common.exceptions import (
@@ -14,6 +20,8 @@ from app.common.exceptions import (
     PaymentFailedException,
     UnauthorizedException,
 )
+from app.config import settings
+import razorpay
 import logging
 
 logger = logging.getLogger("cinemate.payment_service")
@@ -207,3 +215,178 @@ class PaymentService:
         await db.commit()
         await db.refresh(refund)
         return refund
+
+    @classmethod
+    def get_razorpay_client(cls) -> razorpay.Client:
+        if not settings.RAZORPAY_KEY_ID or not settings.RAZORPAY_KEY_SECRET:
+            raise AppException("Razorpay API credentials not configured in backend settings.", status_code=500)
+        return razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+
+    @classmethod
+    async def create_razorpay_order(
+        cls,
+        db: AsyncSession,
+        booking_id: str,
+        user_id: str,
+    ) -> RazorpayOrderResponse:
+        booking_stmt = select(Booking).where(Booking.id == booking_id)
+        booking = (await db.execute(booking_stmt)).scalar_one_or_none()
+        if not booking:
+            raise ResourceNotFoundException("Booking", booking_id)
+
+        if booking.user_id != user_id:
+            raise AppException("Unauthorized to pay for this booking", status_code=403)
+
+        if booking.status != BookingStatus.PENDING:
+            raise AppException(f"Cannot checkout booking in '{booking.status}' status", status_code=400)
+
+        client = cls.get_razorpay_client()
+        amount_in_paise = int(round(booking.total_amount * 100))
+
+        try:
+            order_data = {
+                "amount": amount_in_paise,
+                "currency": "INR",
+                "receipt": f"cin_{booking.booking_code[:12]}",
+                "notes": {
+                    "booking_id": booking.id,
+                    "booking_code": booking.booking_code,
+                    "user_id": user_id,
+                },
+            }
+            order = client.order.create(data=order_data)
+        except Exception as e:
+            logger.error("Razorpay order creation error: %s", e)
+            raise AppException(f"Razorpay order creation failed: {str(e)}", status_code=502)
+
+        payment = Payment(
+            booking_id=booking.id,
+            user_id=user_id,
+            amount=booking.total_amount,
+            currency="INR",
+            status=PaymentStatus.PENDING,
+            provider="RAZORPAY",
+            transaction_id=order["id"],
+            payment_method="RAZORPAY",
+        )
+        db.add(payment)
+        await db.commit()
+        await db.refresh(payment)
+
+        return RazorpayOrderResponse(
+            order_id=order["id"],
+            amount=amount_in_paise,
+            currency="INR",
+            key_id=settings.RAZORPAY_KEY_ID,
+            booking_id=booking.id,
+            payment_id=payment.id,
+        )
+
+    @classmethod
+    async def verify_razorpay_payment(
+        cls,
+        db: AsyncSession,
+        data: RazorpayVerifyRequest,
+        user_id: str,
+    ) -> dict:
+        client = cls.get_razorpay_client()
+
+        # 1. Verify Razorpay HMAC signature
+        params_dict = {
+            "razorpay_order_id": data.razorpay_order_id,
+            "razorpay_payment_id": data.razorpay_payment_id,
+            "razorpay_signature": data.razorpay_signature,
+        }
+        try:
+            client.utility.verify_payment_signature(params_dict)
+        except Exception as e:
+            logger.error("Razorpay signature verification failed: %s", e)
+            raise PaymentFailedException("Invalid Razorpay payment signature.")
+
+        # 2. Get booking
+        booking = await BookingService.get_booking_by_id(db, data.booking_id)
+        if booking.user_id != user_id:
+            raise AppException("Unauthorized to verify payment for this booking", status_code=403)
+
+        payment_stmt = select(Payment).where(
+            Payment.booking_id == data.booking_id,
+            Payment.provider == "RAZORPAY",
+        ).order_by(Payment.created_at.desc())
+        payment = (await db.execute(payment_stmt)).scalars().first()
+
+        if not payment:
+            payment = Payment(
+                booking_id=booking.id,
+                user_id=user_id,
+                amount=booking.total_amount,
+                currency="INR",
+                status=PaymentStatus.PENDING,
+                provider="RAZORPAY",
+                transaction_id=data.razorpay_payment_id,
+                payment_method="RAZORPAY",
+            )
+            db.add(payment)
+            await db.commit()
+            await db.refresh(payment)
+
+        payment.transaction_id = data.razorpay_payment_id
+
+        # 3. Check for conflict if hold expired while customer was in payment gateway
+        seat_ids = [s.seat_id for s in booking.seats]
+        conflict_stmt = (
+            select(BookingSeat)
+            .join(Booking, BookingSeat.booking_id == Booking.id)
+            .where(
+                BookingSeat.show_id == booking.show_id,
+                BookingSeat.seat_id.in_(seat_ids),
+                BookingSeat.booking_id != booking.id,
+                BookingSeat.status == "CONFIRMED",
+                Booking.status == BookingStatus.CONFIRMED,
+            )
+        )
+        conflicts = list((await db.execute(conflict_stmt)).scalars().all())
+
+        if conflicts:
+            logger.error(
+                "Razorpay payment succeeded for booking %s but seats %s were already claimed! Triggering automatic refund.",
+                booking.booking_code,
+                [c.seat_id for c in conflicts],
+            )
+            booking.status = BookingStatus.EXPIRED
+            booking.cancellation_reason = "Payment completed after seat hold expiration and seats were claimed by another customer."
+            
+            try:
+                client.payment.refund(data.razorpay_payment_id, int(round(payment.amount * 100)))
+            except Exception as ref_err:
+                logger.warning("Automated Razorpay gateway refund call notice: %s", ref_err)
+
+            refund = Refund(
+                payment_id=payment.id,
+                booking_id=booking.id,
+                amount=payment.amount,
+                status=RefundStatus.COMPLETED,
+                reason="Automatic refund: seats unavailable upon late payment confirmation",
+                transaction_id=f"ref_{secrets.token_hex(10)}",
+            )
+            db.add(refund)
+            payment.status = PaymentStatus.REFUNDED
+            await db.commit()
+
+            return {
+                "status": "refunded_due_to_expired_hold",
+                "booking_id": booking.id,
+                "refund_amount": payment.amount,
+            }
+
+        # 4. Confirm booking & generate digital ticket
+        payment.status = PaymentStatus.SUCCEEDED
+        await db.commit()
+        confirmed_booking = await BookingService.confirm_booking(db, booking.id, payment.id)
+
+        return {
+            "status": "confirmed",
+            "booking_id": booking.id,
+            "payment_id": payment.id,
+            "ticket_number": getattr(confirmed_booking, "ticket_number", None),
+        }
+

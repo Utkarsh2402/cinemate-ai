@@ -217,3 +217,35 @@ export interface AdminAnalytics {
   }[];
   revenue_by_genre: Record<string, number>;
 }
+
+export interface InternetMovieSuggestion {
+  title: string;
+  year?: number;
+  genres: string[];
+  language?: string;
+  rating: number;
+  duration?: string;
+  director?: string;
+  synopsis: string;
+  where_to_watch: string;
+  streaming_platform: string;
+  poster_url?: string;
+  matched_local_movie_id?: string;
+}
+
+export interface MovieDiscoveryResult {
+  query: string;
+  explanation: string;
+  extracted_filters: {
+    genre?: string;
+    language?: string;
+    city?: string;
+    max_price?: number;
+    max_duration_minutes?: number;
+    time_of_day?: string;
+    target_date?: string;
+  };
+  movies: Movie[];
+  internet_suggestions: InternetMovieSuggestion[];
+  matched_show_count: number;
+}

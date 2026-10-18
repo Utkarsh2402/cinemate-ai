@@ -19,10 +19,26 @@ class MovieDiscoveryRequest(BaseModel):
     city: Optional[str] = "Delhi"
 
 
+class InternetMovieSuggestion(BaseModel):
+    title: str
+    year: Optional[int] = 2024
+    genres: List[str] = []
+    language: Optional[str] = "Hindi"
+    rating: float = 8.0
+    duration: Optional[str] = "135m"
+    director: Optional[str] = None
+    synopsis: str
+    where_to_watch: str = "Netflix / Prime Video / Theaters"
+    streaming_platform: str = "Netflix"
+    poster_url: Optional[str] = None
+    matched_local_movie_id: Optional[str] = None
+
+
 class MovieDiscoveryResponse(BaseModel):
     query: str
     extracted_filters: ExtractedFilters
     movies: List[MovieResponse]
+    internet_suggestions: List[InternetMovieSuggestion] = []
     matched_show_count: int
     explanation: str
 
