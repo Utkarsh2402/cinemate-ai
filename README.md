@@ -1,3 +1,14 @@
+---
+title: CineMate AI - Movie Reservation & Discovery Platform
+emoji: 🎬
+colorFrom: red
+colorTo: indigo
+sdk: gradio
+app_file: app.py
+pinned: false
+license: mit
+---
+
 # CineMate AI — Production-Grade Movie Ticket Reservation System
 
 [![CI Workflow](https://github.com/cinemate/cinemate-ai/actions/workflows/ci.yml/badge.svg)](https://github.com)
