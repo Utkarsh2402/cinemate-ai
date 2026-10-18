@@ -75,10 +75,10 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({ movie, onBookNow }) => {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-slate-100">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3 pt-4 border-t border-slate-100">
           <button
             onClick={() => onBookNow(movie)}
-            className="flex items-center gap-2 px-6 py-3 rounded-2xl font-bold text-sm bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-200 transition-all transform hover:-translate-y-0.5 active:translate-y-0"
+            className="flex items-center justify-center gap-2 px-6 py-3 rounded-2xl font-bold text-sm bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-200 transition-all active:scale-95"
           >
             <Ticket className="w-4 h-4" />
             Book Tickets Now
@@ -87,8 +87,8 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({ movie, onBookNow }) => {
           <a
             href={movie.trailer_url || `https://www.youtube.com/results?search_query=${encodeURIComponent(movie.title)}+trailer`}
             target="_blank"
-            rel="noreferrer"
-            className="flex items-center gap-2 px-5 py-3 rounded-2xl font-bold text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition-colors"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 px-5 py-3 rounded-2xl font-bold text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition-colors active:scale-95"
           >
             <Play className="w-4 h-4 fill-slate-700 text-slate-700" />
             Watch Trailer

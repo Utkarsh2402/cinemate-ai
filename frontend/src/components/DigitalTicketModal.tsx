@@ -15,8 +15,8 @@ export const DigitalTicketModal: React.FC<DigitalTicketModalProps> = ({ ticket, 
   const showDate = new Date(ticket.start_time);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
-      <div className="relative w-full max-w-lg bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
+      <div className="relative w-full max-w-lg max-h-[95vh] overflow-y-auto bg-white rounded-3xl p-4 sm:p-8 border border-slate-200 shadow-2xl">
         {/* Success Header */}
         <div className="text-center mb-6">
           <div className="w-12 h-12 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-600 mx-auto flex items-center justify-center mb-2 shadow-sm">

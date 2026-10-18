@@ -81,7 +81,7 @@ app.add_middleware(
 )
 
 
-# Correlation ID & Request Timing Middleware
+# Correlation ID, Request Timing & Security Headers Middleware
 @app.middleware("http")
 async def correlation_id_and_timing_middleware(request: Request, call_next):
     req_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
@@ -93,6 +93,16 @@ async def correlation_id_and_timing_middleware(request: Request, call_next):
     process_time = (time.perf_counter() - start_time) * 1000.0
     response.headers["X-Request-ID"] = req_id
     response.headers["X-Response-Time-Ms"] = f"{process_time:.2f}"
+    
+    # Standard Security Headers
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    if settings.ENVIRONMENT != "development":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        
     return response
 
 

@@ -34,8 +34,8 @@ export const ShowtimeSelector: React.FC<ShowtimeSelectorProps> = ({
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
-      <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
+      <div className="relative w-full max-w-4xl max-h-[92vh] overflow-y-auto bg-white rounded-3xl p-4 sm:p-8 border border-slate-200 shadow-2xl">
         {/* Header */}
         <div className="flex items-start justify-between border-b border-slate-100 pb-5 mb-5">
           <div>

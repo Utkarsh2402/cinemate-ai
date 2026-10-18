@@ -245,7 +245,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               placeholder="e.g. WELCOME50 or FLAT100"
               value={promoCode}
               onChange={(e) => setPromoCode(e.target.value)}
-              className="flex-1 bg-slate-50 border border-slate-200 focus:bg-white focus:border-rose-500 rounded-xl px-3 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none transition-colors"
+              className="flex-1 bg-slate-50 border border-slate-200 focus:bg-white focus:border-rose-500 rounded-xl px-3 py-2.5 text-base sm:text-xs text-slate-900 placeholder-slate-400 focus:outline-none transition-colors"
             />
             <button
               onClick={handleApplyPromo}

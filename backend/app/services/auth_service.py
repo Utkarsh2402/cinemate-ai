@@ -30,8 +30,8 @@ class AuthService:
             email=data.email.lower().strip(),
             hashed_password=get_password_hash(data.password),
             full_name=data.full_name.strip(),
-            phone=data.phone,
-            role=data.role if data.role in ["customer", "admin"] else "customer",
+            phone=data.phone.strip() if data.phone else None,
+            role="customer",
             is_active=True,
             preferences={"favorite_genres": [], "preferred_city": "Delhi"},
         )

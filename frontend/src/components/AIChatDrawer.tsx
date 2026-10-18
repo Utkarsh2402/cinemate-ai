@@ -85,7 +85,7 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({ currentCity }) => {
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 z-40 flex items-center gap-2.5 px-4 py-3 rounded-full bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-lg shadow-rose-200 hover:scale-105 active:scale-95 transition-all"
+          className="fixed bottom-4 sm:bottom-6 right-4 sm:right-6 z-40 flex items-center gap-2 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-full bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-lg shadow-rose-200 hover:scale-105 active:scale-95 transition-all"
         >
           <Sparkles className="w-4 h-4 text-amber-200" />
           <span>Ask CineMate AI</span>
@@ -94,7 +94,7 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({ currentCity }) => {
 
       {/* Slide-out Drawer */}
       {isOpen && (
-        <div className="fixed bottom-6 right-6 z-50 w-full max-w-sm sm:max-w-md h-[550px] bg-white rounded-3xl border border-slate-200 shadow-2xl flex flex-col overflow-hidden animate-slideUp">
+        <div className="fixed bottom-4 sm:bottom-6 right-3 sm:right-6 left-3 sm:left-auto z-50 sm:w-[380px] max-w-full sm:max-w-md h-[80vh] sm:h-[550px] max-h-[600px] bg-white rounded-3xl border border-slate-200 shadow-2xl flex flex-col overflow-hidden animate-slideUp">
           {/* Header */}
           <div className="p-4 border-b border-slate-100 bg-white flex items-center justify-between">
             <div className="flex items-center gap-2.5">

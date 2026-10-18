@@ -233,37 +233,49 @@ export const SeatLayoutModal: React.FC<SeatLayoutModalProps> = ({
             <p className="text-xs font-semibold">Loading auditorium seating map...</p>
           </div>
         ) : (
-          <div className="my-5 overflow-x-auto pb-4 flex flex-col items-center">
-            <div className="min-w-[480px] space-y-2">
-              {Object.keys(rowsMap)
-                .sort()
-                .map((rowLetter) => (
-                  <div key={rowLetter} className="flex items-center justify-center gap-2">
-                    <span className="w-5 text-xs font-black text-slate-400 text-center">{rowLetter}</span>
-                    <div className="flex items-center gap-1.5">
-                      {rowsMap[rowLetter].map((seat) => (
-                        <button
-                          key={seat.seat_id}
-                          disabled={seat.status === 'BOOKED' || seat.status === 'HELD'}
-                          onClick={() => handleSeatClick(seat)}
-                          title={`Row ${seat.row} Seat ${seat.number} (${seat.seat_type}) - ₹${seat.price}`}
-                          className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg text-[10px] font-bold border transition-all flex items-center justify-center ${getSeatColorClass(
-                            seat
-                          )}`}
-                        >
-                          {seat.number}
-                        </button>
-                      ))}
-                    </div>
-                    <span className="w-5 text-xs font-black text-slate-400 text-center">{rowLetter}</span>
-                  </div>
-                ))}
+          <div className="my-4">
+            {/* Mobile swipe helper */}
+            <div className="sm:hidden text-center text-[10px] text-slate-400 font-semibold mb-2 flex items-center justify-center gap-1.5 bg-slate-50 py-1 rounded-lg">
+              <span>👉</span>
+              <span>Swipe horizontally to browse rows & seats</span>
+              <span>👈</span>
+            </div>
+
+            <div className="w-full overflow-x-auto pb-4 touch-pan-x scrollbar-thin">
+              <div className="inline-block min-w-full text-center">
+                <div className="inline-flex flex-col items-center space-y-2 px-2">
+                  {Object.keys(rowsMap)
+                    .sort()
+                    .map((rowLetter) => (
+                      <div key={rowLetter} className="flex items-center justify-center gap-2">
+                        <span className="w-5 text-xs font-black text-slate-400 text-center select-none">{rowLetter}</span>
+                        <div className="flex items-center gap-1.5 sm:gap-2">
+                          {rowsMap[rowLetter].map((seat) => (
+                            <button
+                              key={seat.seat_id}
+                              disabled={seat.status === 'BOOKED' || seat.status === 'HELD'}
+                              onClick={() => handleSeatClick(seat)}
+                              title={`Row ${seat.row} Seat ${seat.number} (${seat.seat_type}) - ₹${seat.price}`}
+                              aria-label={`Row ${seat.row} Seat ${seat.number}`}
+                              className={`w-8 h-8 sm:w-9 sm:h-9 rounded-lg text-[10px] sm:text-xs font-bold border transition-all flex items-center justify-center select-none active:scale-95 ${getSeatColorClass(
+                                seat
+                              )}`}
+                            >
+                              {seat.number}
+                            </button>
+                          ))}
+                        </div>
+                        <span className="w-5 text-xs font-black text-slate-400 text-center select-none">{rowLetter}</span>
+                      </div>
+                    ))}
+                </div>
+              </div>
             </div>
           </div>
         )}
 
         {/* Legend */}
-        <div className="flex flex-wrap items-center justify-center gap-4 py-3 border-t border-b border-slate-100 text-xs text-slate-600 mb-4 bg-slate-50/60 rounded-xl">
+        <div className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-4 py-2.5 sm:py-3 border-t border-b border-slate-100 text-[11px] sm:text-xs text-slate-600 mb-4 bg-slate-50/60 rounded-xl">
           <div className="flex items-center gap-1.5">
             <div className="w-3.5 h-3.5 rounded bg-emerald-50 border border-emerald-300" />
             <span>Standard (₹{layout?.pricing['STANDARD'] || 220})</span>
@@ -295,29 +307,29 @@ export const SeatLayoutModal: React.FC<SeatLayoutModalProps> = ({
         </div>
 
         {/* Bottom Checkout Action Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-sm font-bold text-slate-900">
+              <span className="text-xs sm:text-sm font-bold text-slate-900">
                 {selectedSeatsInfo.length} Seat(s) Selected:
               </span>
-              <span className="text-sm text-rose-600 font-black">
+              <span className="text-xs sm:text-sm text-rose-600 font-black">
                 {selectedSeatsInfo.map((s) => `${s.row}${s.number}`).join(', ') || 'None'}
               </span>
             </div>
 
             {selectedSeatsInfo.length > 0 && (
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">
                 Subtotal: ₹{subtotal} + Fee & GST: ₹{convenienceFee + taxAmount} ={' '}
                 <span className="text-slate-900 font-black">Total: ₹{totalAmount}</span>
               </p>
             )}
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-stretch sm:items-center gap-2">
             <button
               onClick={onClose}
-              className="px-4 py-2.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
+              className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
             >
               Cancel
             </button>
@@ -325,7 +337,7 @@ export const SeatLayoutModal: React.FC<SeatLayoutModalProps> = ({
             {activeHold ? (
               <button
                 onClick={() => onProceedToCheckout(show, activeHold)}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-200 transition-all"
+                className="flex-2 sm:flex-none flex items-center justify-center gap-2 px-5 sm:px-6 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-200 transition-all active:scale-95"
               >
                 <CheckCircle2 className="w-4 h-4" />
                 Proceed to Checkout (₹{totalAmount})
@@ -334,7 +346,7 @@ export const SeatLayoutModal: React.FC<SeatLayoutModalProps> = ({
               <button
                 disabled={selectedSeatIds.length === 0 || isHolding}
                 onClick={handleLockSeats}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed text-white shadow-md shadow-rose-200 transition-all"
+                className="flex-2 sm:flex-none flex items-center justify-center gap-2 px-5 sm:px-6 py-2.5 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed text-white shadow-md shadow-rose-200 transition-all active:scale-95"
               >
                 <Ticket className="w-4 h-4" />
                 {isHolding ? 'Locking Seats...' : `Hold Seats & Pay (₹${totalAmount})`}

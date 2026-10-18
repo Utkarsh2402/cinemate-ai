@@ -4,10 +4,9 @@ from pydantic import BaseModel, EmailStr, Field
 
 class UserRegister(BaseModel):
     email: EmailStr
-    password: str = Field(..., min_length=6, description="Minimum 6 characters")
+    password: str = Field(..., min_length=8, description="Minimum 8 characters")
     full_name: str = Field(..., min_length=2)
     phone: Optional[str] = None
-    role: Optional[str] = "customer"
 
 
 class UserLogin(BaseModel):

@@ -114,13 +114,13 @@ const AppContent: React.FC = () => {
           </div>
 
           {/* Genre Filter Pills */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-2 max-w-full touch-pan-x scrollbar-none select-none">
             <Filter className="w-3.5 h-3.5 text-slate-400 flex-shrink-0 mr-1" />
             {genres.map((g) => (
               <button
                 key={g}
                 onClick={() => setSelectedGenre(g)}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 flex-shrink-0 active:scale-95 ${
                   selectedGenre === g
                     ? g === 'Netflix'
                       ? 'bg-red-600 text-white shadow-md shadow-red-200 border border-red-600'

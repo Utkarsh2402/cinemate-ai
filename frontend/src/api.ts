@@ -11,11 +11,15 @@ import type {
   MovieDiscoveryResult,
 } from './types';
 
-const API_BASE = 'http://localhost:8000/api/v1';
+const API_BASE = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
 
 function getAuthHeader(): Record<string, string> {
-  const token = localStorage.getItem('cinemate_access_token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  try {
+    const token = localStorage.getItem('cinemate_access_token');
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  } catch {
+    return {};
+  }
 }
 
 function generateIdempotencyKey(): string {
@@ -30,11 +34,28 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     ...options.headers,
   };
 
-  const response = await fetch(url, { ...options, headers });
-  const data = await response.json();
+  let response: Response;
+  try {
+    response = await fetch(url, { ...options, headers });
+  } catch (netErr: any) {
+    throw new Error('Network error: Unable to connect to CineMate backend service.');
+  }
+
+  let data: any;
+  const contentType = response.headers.get('content-type') || '';
+  if (contentType.includes('application/json')) {
+    try {
+      data = await response.json();
+    } catch {
+      data = {};
+    }
+  } else {
+    const text = await response.text();
+    data = { error: { message: text || `HTTP ${response.status} response` } };
+  }
 
   if (!response.ok) {
-    const errorMsg = data.error?.message || data.detail || 'An unexpected error occurred';
+    const errorMsg = data.error?.message || data.detail || (typeof data === 'string' ? data : 'An unexpected error occurred');
     throw new Error(errorMsg);
   }
 
