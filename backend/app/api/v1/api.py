@@ -10,6 +10,7 @@ from app.api.v1.endpoints import (
     tickets,
     ai,
     admin,
+    groups,
 )
 
 api_router = APIRouter()
@@ -23,4 +24,5 @@ api_router.include_router(bookings.router, prefix="/bookings", tags=["Bookings"]
 api_router.include_router(payments.router, prefix="/payments", tags=["Payments Sandbox"])
 api_router.include_router(tickets.router, prefix="/tickets", tags=["Digital Tickets"])
 api_router.include_router(ai.router, prefix="/ai", tags=["AI Movie Discovery"])
+api_router.include_router(groups.router, prefix="/groups", tags=["Group Movie Planner"])
 api_router.include_router(admin.router, prefix="/admin", tags=["Administration & Analytics"])

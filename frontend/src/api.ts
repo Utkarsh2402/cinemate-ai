@@ -201,4 +201,29 @@ export const api = {
 
   // Admin
   getAdminAnalytics: () => request<AdminAnalytics>('/admin/analytics'),
+
+  // Collaborative Group Sessions
+  createGroupSession: (name: string, hostName = 'Host') => {
+    return request<any>('/groups/sessions', {
+      method: 'POST',
+      body: JSON.stringify({ name, host_name: hostName }),
+    });
+  },
+
+  getGroupSession: (inviteCode: string) => {
+    return request<any>(`/groups/sessions/${inviteCode}`);
+  },
+
+  joinGroupSession: (inviteCode: string, memberData: { name: string; preferred_genres: string[]; preferred_languages: string[]; max_budget: number }) => {
+    return request<any>(`/groups/sessions/${inviteCode}/join`, {
+      method: 'POST',
+      body: JSON.stringify(memberData),
+    });
+  },
+
+  decideGroupSession: (inviteCode: string) => {
+    return request<any>(`/groups/sessions/${inviteCode}/decide`, {
+      method: 'POST',
+    });
+  },
 };
