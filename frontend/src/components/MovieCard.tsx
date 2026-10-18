@@ -26,9 +26,17 @@ export const MovieCard: React.FC<MovieCardProps> = ({ movie, onSelect }) => {
           {movie.rating.toFixed(1)}
         </div>
 
-        {/* Language Badge */}
-        <div className="absolute top-2.5 left-2.5 bg-slate-900/90 backdrop-blur-md px-2 py-0.5 rounded-md border border-slate-700 text-slate-300 font-semibold text-[11px]">
-          {movie.language}
+        {/* Top Badges (Netflix + Language) */}
+        <div className="absolute top-2.5 left-2.5 flex flex-col gap-1 items-start">
+          {movie.genres.some((g) => g.toLowerCase() === 'netflix') && (
+            <div className="bg-red-600/95 text-white font-black text-[9px] tracking-widest px-2 py-0.5 rounded shadow-lg border border-red-500/50 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+              NETFLIX
+            </div>
+          )}
+          <div className="bg-slate-900/90 backdrop-blur-md px-2 py-0.5 rounded-md border border-slate-700 text-slate-300 font-semibold text-[10px]">
+            {movie.language}
+          </div>
         </div>
       </div>
 

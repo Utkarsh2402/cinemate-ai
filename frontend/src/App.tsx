@@ -38,7 +38,7 @@ const AppContent: React.FC = () => {
   const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
   const [isAuthOpen, setIsAuthOpen] = useState<boolean>(false);
 
-  const genres = ['All', 'Action', 'Sci-Fi', 'Comedy', 'Drama', 'Horror', 'Adventure'];
+  const genres = ['All', 'Netflix', 'Action', 'Sci-Fi', 'Comedy', 'Drama', 'Horror', 'Adventure'];
 
   const fetchMovies = async () => {
     try {
@@ -120,13 +120,14 @@ const AppContent: React.FC = () => {
               <button
                 key={g}
                 onClick={() => setSelectedGenre(g)}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
                   selectedGenre === g
-                    ? 'bg-rose-600 text-white shadow-glow-red'
-                    : 'bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800'
+                    ? g === 'Netflix' ? 'bg-red-600 text-white shadow-lg border border-red-500' : 'bg-rose-600 text-white shadow-glow-red'
+                    : g === 'Netflix' ? 'bg-red-950/60 hover:bg-red-900/60 text-red-400 hover:text-red-300 border border-red-900/80' : 'bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800'
                 }`}
               >
-                {g}
+                {g === 'Netflix' && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />}
+                {g === 'Netflix' ? 'Netflix Live' : g}
               </button>
             ))}
           </div>
