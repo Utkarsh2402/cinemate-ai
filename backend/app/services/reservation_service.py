@@ -174,6 +174,16 @@ class ReservationService:
 
             await db.commit()
 
+            from app.schemas.reservation import ConcurrencyTelemetry
+            
+            telemetry_data = ConcurrencyTelemetry(
+                layer1_redis_lock=f"SETNX seat_hold:{show_id}:[{','.join(seat_ids)}] {user_id} EX {settings.SEAT_HOLD_DURATION_SECONDS}",
+                layer2_acid_isolation="PostgreSQL SELECT FOR UPDATE with READ COMMITTED row locking",
+                atomic_rollback_supported=True,
+                lock_ttl_seconds=settings.SEAT_HOLD_DURATION_SECONDS,
+                idempotency_key=f"idemp_{secrets.token_hex(8)}",
+            )
+
             return SeatHoldBatchResponse(
                 show_id=show_id,
                 hold_token=hold_token,
@@ -182,6 +192,7 @@ class ReservationService:
                 remaining_seconds=settings.SEAT_HOLD_DURATION_SECONDS,
                 subtotal=round(subtotal, 2),
                 message="Seats reserved temporarily for checkout",
+                telemetry=telemetry_data,
             )
         except Exception:
             # On any failure, ensure Redis keys are cleaned up

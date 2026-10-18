@@ -114,6 +114,13 @@ export interface SeatHoldResponse {
   remaining_seconds: number;
   subtotal: number;
   message: string;
+  telemetry?: {
+    layer1_redis_lock: string;
+    layer2_acid_isolation: string;
+    atomic_rollback_supported: boolean;
+    lock_ttl_seconds: number;
+    idempotency_key?: string;
+  };
 }
 
 export interface BookingSeat {

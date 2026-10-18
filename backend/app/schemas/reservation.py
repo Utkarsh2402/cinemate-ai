@@ -18,6 +18,14 @@ class SeatHoldItem(BaseModel):
     expires_at: datetime
 
 
+class ConcurrencyTelemetry(BaseModel):
+    layer1_redis_lock: str
+    layer2_acid_isolation: str
+    atomic_rollback_supported: bool = True
+    lock_ttl_seconds: int = 600
+    idempotency_key: Optional[str] = None
+
+
 class SeatHoldBatchResponse(BaseModel):
     show_id: str
     hold_token: str
@@ -26,6 +34,7 @@ class SeatHoldBatchResponse(BaseModel):
     remaining_seconds: int
     subtotal: float
     message: str = "Seats held successfully"
+    telemetry: Optional[ConcurrencyTelemetry] = None
 
 
 class SeatHoldReleaseRequest(BaseModel):
