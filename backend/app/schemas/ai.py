@@ -78,8 +78,19 @@ class GroupPlannerResponse(BaseModel):
 
 
 class ChatMessage(BaseModel):
-    role: str  # user, assistant, system
-    content: str
+    role: str = "user"  # user, assistant, system, model
+    content: Optional[str] = None
+    parts: Optional[Any] = None
+
+    def get_text(self) -> str:
+        if self.content:
+            return self.content
+        if isinstance(self.parts, list) and len(self.parts) > 0:
+            item = self.parts[0]
+            if isinstance(item, dict) and "text" in item:
+                return item["text"]
+            return str(item)
+        return ""
 
 
 class AIChatRequest(BaseModel):

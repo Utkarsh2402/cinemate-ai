@@ -46,8 +46,8 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({ currentCity }) => {
 
     try {
       const historyPayload = messages.map((m) => ({
-        role: m.sender === 'user' ? 'user' : 'model',
-        parts: [{ text: m.text }],
+        role: m.sender === 'user' ? 'user' : 'assistant',
+        content: m.text,
       }));
 
       const res = await api.chatAI(msg, historyPayload, currentCity);
@@ -60,12 +60,16 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({ currentCity }) => {
           tools: res.tools_called,
         },
       ]);
-    } catch {
+    } catch (err: any) {
+      console.error('AIChat error:', err);
+      const errorMsg = err?.message?.includes('Network error')
+        ? "⚠️ Unable to reach CineMate backend. Please ensure the backend is running."
+        : "I couldn't process that query right now, but feel free to search movies or check showtimes!";
       setMessages((prev) => [
         ...prev,
         {
           sender: 'assistant',
-          text: "I couldn't process your request right now, but feel free to browse the catalog!",
+          text: errorMsg,
         },
       ]);
     } finally {

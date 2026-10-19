@@ -556,47 +556,81 @@ class AIService:
         tools_called = []
         structured_data = {}
 
+        # 1. Detect if a specific movie in the catalog was requested
+        all_movies = (await db.execute(select(Movie).where(Movie.is_active == True))).scalars().all()
+        target_movie: Optional[Movie] = None
+        for m in all_movies:
+            title_lower = m.title.lower()
+            clean_title = re.sub(r"[^a-zA-Z0-9\s]", " ", title_lower)
+            keywords = [k for k in clean_title.split() if len(k) >= 3 and k not in ["the", "and", "part", "two", "one"]]
+            if title_lower in msg or any(k in msg for k in keywords):
+                target_movie = m
+                break
+
         if any(w in msg for w in ["showtime", "show time", "shows", "when", "time", "schedule"]):
             tools_called.append("get_showtimes")
-            shows = await ShowService.list_shows(db, city=request.city)
-            show_summary = [
-                {
-                    "show_id": s.id,
-                    "movie": s.movie.title if s.movie else "Movie",
-                    "theater": s.screen.theater.name if s.screen and s.screen.theater else "Cinema",
-                    "start_time": s.start_time.strftime("%I:%M %p"),
-                    "format": s.format,
-                }
-                for s in shows[:5]
-            ]
-            structured_data["shows"] = show_summary
-            reply = f"Here are upcoming showtimes in {request.city}:\n" + "\n".join(
-                f"• **{s['movie']}** at {s['theater']} ({s['start_time']} - {s['format']})"
-                for s in show_summary
-            )
+            if target_movie:
+                shows = await ShowService.list_shows(db, movie_id=target_movie.id, city=request.city)
+                if not shows:
+                    shows = await ShowService.list_shows(db, movie_id=target_movie.id)
+            else:
+                shows = await ShowService.list_shows(db, city=request.city)
+
+            if shows:
+                show_summary = [
+                    {
+                        "show_id": s.id,
+                        "movie": s.movie.title if s.movie else "Movie",
+                        "theater": s.screen.theater.name if s.screen and s.screen.theater else "Cinema",
+                        "start_time": s.start_time.strftime("%I:%M %p"),
+                        "format": s.format,
+                    }
+                    for s in shows[:6]
+                ]
+                structured_data["shows"] = show_summary
+                header = f"Here are showtimes for **{target_movie.title}**:" if target_movie else f"Here are upcoming showtimes in {request.city}:"
+                reply = f"{header}\n" + "\n".join(
+                    f"• **{s['movie']}** at {s['theater']} ({s['start_time']} - {s['format']})"
+                    for s in show_summary
+                )
+            else:
+                movie_name = f" for **{target_movie.title}**" if target_movie else ""
+                reply = f"No upcoming showtimes found{movie_name} in {request.city}. Check back soon or select another city!"
 
         elif any(w in msg for w in ["seat", "seats", "available", "layout"]):
             tools_called.append("check_seat_availability")
-            shows = await ShowService.list_shows(db, city=request.city)
+            if target_movie:
+                shows = await ShowService.list_shows(db, movie_id=target_movie.id, city=request.city)
+                if not shows:
+                    shows = await ShowService.list_shows(db, movie_id=target_movie.id)
+            else:
+                shows = await ShowService.list_shows(db, city=request.city)
+
             if shows:
                 show = shows[0]
                 avail = await ShowService.get_show_seat_availability(db, show.id)
+                min_price = int(min(avail.pricing.values())) if avail.pricing else 250
                 structured_data["availability"] = {
                     "show_id": show.id,
                     "movie": avail.movie_title,
+                    "theater": avail.theater_name,
                     "available": avail.total_available,
                     "held": avail.total_held,
                     "booked": avail.total_booked,
                 }
                 reply = (
-                    f"For **{avail.movie_title}** at {avail.theater_name}:\n"
-                    f"• {avail.total_available} seats currently available\n"
-                    f"• {avail.total_held} temporarily on hold\n"
-                    f"• {avail.total_booked} booked.\n"
-                    f"Ticket prices start from ₹{int(min(avail.pricing.values()))}."
+                    f"🎟️ **Live Seat Availability for {avail.movie_title}**\n\n"
+                    f"• **Theater**: {avail.theater_name} ({avail.screen_name} — {avail.format})\n"
+                    f"• **Showtime**: {show.start_time.strftime('%I:%M %p')}\n"
+                    f"• **Available**: **{avail.total_available}** open seats\n"
+                    f"• **Currently Held**: {avail.total_held} seats (in temporary holds)\n"
+                    f"• **Booked**: {avail.total_booked} confirmed seats\n"
+                    f"• **Tickets From**: ₹{min_price}\n\n"
+                    f"Click any show on the main page to open the interactive seat map and lock your seats with Redis distributed locks!"
                 )
             else:
-                reply = "No active shows found to inspect seat availability."
+                movie_name = f" for **{target_movie.title}**" if target_movie else ""
+                reply = f"No active shows found{movie_name} in {request.city} right now. Feel free to browse our full catalog on the home page!"
 
         elif any(w in msg for w in ["group", "friends", "vote", "we want", "compromise"]):
             tools_called.append("plan_group_movie")
