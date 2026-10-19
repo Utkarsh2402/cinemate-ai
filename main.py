@@ -14,7 +14,15 @@ if str(_BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(_BACKEND_DIR))
 
 # Expose the FastAPI application instance for `uvicorn main:app`
-from app.main import app
+try:
+    from app.main import app
+except Exception as e:
+    import traceback
+    print("=" * 60, file=sys.stderr)
+    print("FATAL ERROR LOADING CINEMATE APP IN main.py:", file=sys.stderr)
+    traceback.print_exc(file=sys.stderr)
+    print("=" * 60, file=sys.stderr)
+    raise e
 
 if __name__ == "__main__":
     import uvicorn
