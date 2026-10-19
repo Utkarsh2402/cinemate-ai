@@ -12,6 +12,9 @@ from app.schemas.show import ShowCreate, ShowSeatAvailabilityResponse, SeatAvail
 from app.common.exceptions import ResourceNotFoundException
 
 
+from app.redis_client import redis_service
+
+
 class ShowService:
     @classmethod
     async def list_shows(
@@ -121,7 +124,24 @@ class ShowService:
         # 2. Build pricing map
         pricing_map: Dict[str, float] = {p.seat_type.upper(): p.price for p in show.pricing}
 
-        # 3. Fetch active holds
+        # 3. Opportunistically purge expired holds for this show to immediately free seats
+        expired_stmt = (
+            select(SeatHold)
+            .where(
+                SeatHold.show_id == show_id,
+                SeatHold.status == "HELD",
+                SeatHold.expires_at <= now,
+            )
+        )
+        expired_res = await db.execute(expired_stmt)
+        expired_holds = list(expired_res.scalars().all())
+        if expired_holds:
+            for h in expired_holds:
+                h.status = "EXPIRED"
+                await redis_service.release_seat_hold(h.show_id, h.seat_id, user_id=None)
+            await db.commit()
+
+        # 4. Fetch active holds
         holds_stmt = (
             select(SeatHold)
             .where(

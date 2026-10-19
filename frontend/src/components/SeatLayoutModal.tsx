@@ -63,6 +63,49 @@ export const SeatLayoutModal: React.FC<SeatLayoutModalProps> = ({
     loadSeatAvailability();
   }, [show.id]);
 
+  // Explicitly release held seats and make them available to other customers
+  const handleReleaseHold = async () => {
+    if (activeHold?.hold_token) {
+      try {
+        await api.releaseHold(activeHold.hold_token);
+      } catch (e) {
+        console.error('Failed to release hold:', e);
+      }
+    }
+    setActiveHold(null);
+    setSelectedSeatIds([]);
+    setRemainingSeconds(0);
+    setErrorMessage('Seats released successfully and made available for other buyers.');
+    await loadSeatAvailability();
+  };
+
+  // Close modal with auto-release
+  const handleCloseModal = async () => {
+    if (activeHold?.hold_token) {
+      try {
+        await api.releaseHold(activeHold.hold_token);
+      } catch (e) {
+        console.error('Failed to release hold on close:', e);
+      }
+    }
+    onClose();
+  };
+
+  // Release hold if user navigates away or closes tab
+  useEffect(() => {
+    if (!activeHold?.hold_token) return;
+    const token = activeHold.hold_token;
+    const handleBeforeUnload = () => {
+      try {
+        api.releaseHold(token);
+      } catch (e) {
+        // ignore
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [activeHold?.hold_token]);
+
   // Countdown timer for active temporary hold
   useEffect(() => {
     if (remainingSeconds <= 0) return;
@@ -70,9 +113,12 @@ export const SeatLayoutModal: React.FC<SeatLayoutModalProps> = ({
       setRemainingSeconds((prev) => {
         if (prev <= 1) {
           clearInterval(interval);
+          if (activeHold?.hold_token) {
+            api.releaseHold(activeHold.hold_token).catch(() => {});
+          }
           setActiveHold(null);
           setSelectedSeatIds([]);
-          setErrorMessage('Seat hold expired. Redis distributed lock released automatically.');
+          setErrorMessage('Seat hold expired. Your seats have been released for other buyers.');
           loadSeatAvailability();
           return 0;
         }
@@ -80,7 +126,7 @@ export const SeatLayoutModal: React.FC<SeatLayoutModalProps> = ({
       });
     }, 1000);
     return () => clearInterval(interval);
-  }, [remainingSeconds]);
+  }, [remainingSeconds, activeHold]);
 
   // Toggle seat selection
   const handleSeatClick = (seat: SeatItem) => {
@@ -89,7 +135,7 @@ export const SeatLayoutModal: React.FC<SeatLayoutModalProps> = ({
     }
 
     if (activeHold) {
-      setErrorMessage('Seats are already locked for checkout. Please complete booking or cancel.');
+      setErrorMessage('Seats are already locked for checkout. Tap "Release Seats" to change your selection.');
       return;
     }
 
@@ -266,7 +312,7 @@ Target Coordinate: Seat ${targetCoord} | Lock Key: ${targetKey}
             </button>
 
             {/* Active Hold Countdown Badge */}
-            {activeHold && remainingSeconds > 0 ? (
+            {activeHold && remainingSeconds > 0 && (
               <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-2xl bg-amber-50 border border-amber-300 text-amber-800 animate-pulse">
                 <Clock className="w-4 h-4 text-amber-600" />
                 <div>
@@ -274,15 +320,15 @@ Target Coordinate: Seat ${targetCoord} | Lock Key: ${targetKey}
                   <p className="text-xs sm:text-sm font-mono font-extrabold">{formatTimer(remainingSeconds)}</p>
                 </div>
               </div>
-            ) : (
-              <button
-                onClick={onClose}
-                aria-label="Close Seat Map"
-                className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-400 hover:text-slate-700 flex items-center justify-center transition-colors font-bold text-sm"
-              >
-                ✕
-              </button>
             )}
+
+            <button
+              onClick={handleCloseModal}
+              aria-label="Close Seat Map"
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-400 hover:text-slate-700 flex items-center justify-center transition-colors font-bold text-sm"
+            >
+              ✕
+            </button>
           </div>
         </div>
 
@@ -537,20 +583,30 @@ Target Coordinate: Seat ${targetCoord} | Lock Key: ${targetKey}
 
             <div className="flex items-stretch sm:items-center gap-2">
               <button
-                onClick={onClose}
+                onClick={handleCloseModal}
                 className="px-3.5 sm:px-4 py-2.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
               >
                 Cancel
               </button>
 
               {activeHold ? (
-                <button
-                  onClick={() => onProceedToCheckout(show, activeHold)}
-                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 sm:px-7 py-2.5 rounded-xl text-xs sm:text-sm font-black bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-200 transition-all active:scale-95"
-                >
-                  <CheckCircle2 className="w-4 h-4" />
-                  Proceed to Checkout (₹{totalAmount})
-                </button>
+                <>
+                  <button
+                    onClick={handleReleaseHold}
+                    disabled={isHolding}
+                    className="px-3.5 sm:px-4 py-2.5 rounded-xl text-xs font-bold bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 transition-colors"
+                    title="Release held seats for other customers"
+                  >
+                    Release Seats
+                  </button>
+                  <button
+                    onClick={() => onProceedToCheckout(show, activeHold)}
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 sm:px-7 py-2.5 rounded-xl text-xs sm:text-sm font-black bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-200 transition-all active:scale-95"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    Proceed to Checkout (₹{totalAmount})
+                  </button>
+                </>
               ) : (
                 <button
                   disabled={selectedSeatIds.length === 0 || isHolding}

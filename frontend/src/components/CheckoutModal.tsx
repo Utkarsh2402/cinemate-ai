@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CreditCard, Smartphone, Building, ShieldCheck, Tag, AlertTriangle, CheckCircle, ArrowRight, Zap } from 'lucide-react';
 import type { Show, SeatHoldResponse, TicketDetail } from '../types';
 import { api } from '../api';
@@ -26,6 +26,32 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [simulateFailure, setSimulateFailure] = useState<boolean>(false);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Release hold if user navigates away or closes tab
+  useEffect(() => {
+    if (!holdData?.hold_token) return;
+    const token = holdData.hold_token;
+    const handleBeforeUnload = () => {
+      try {
+        api.releaseHold(token);
+      } catch (e) {
+        // ignore
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [holdData?.hold_token]);
+
+  const handleCloseCheckout = async () => {
+    if (holdData?.hold_token) {
+      try {
+        await api.releaseHold(holdData.hold_token);
+      } catch (e) {
+        console.error('Failed to release hold on checkout close:', e);
+      }
+    }
+    onClose();
+  };
 
   // Price calculations
   const subtotal = holdData.subtotal;
@@ -194,7 +220,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             <p className="text-xs text-slate-500">Secure Instant Ticket Confirmation</p>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleCloseCheckout}
+            aria-label="Close Checkout and Release Seats"
             className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-400 hover:text-slate-700 flex items-center justify-center transition-colors font-bold text-sm"
           >
             ✕
@@ -407,6 +434,15 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               <ArrowRight className="w-4 h-4" />
             </>
           )}
+        </button>
+
+        <button
+          type="button"
+          disabled={isProcessing}
+          onClick={handleCloseCheckout}
+          className="w-full mt-2 py-2 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors"
+        >
+          Cancel & Release Seats
         </button>
 
         <div className="mt-3.5 flex items-center justify-center gap-1.5 text-[11px] text-slate-500 font-medium">

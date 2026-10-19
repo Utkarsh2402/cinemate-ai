@@ -249,7 +249,7 @@ class ReservationService:
 
         for h in holds:
             h.status = "RELEASED"
-            await redis_service.release_seat_hold(h.show_id, h.seat_id, h.user_id)
+            await redis_service.release_seat_hold(h.show_id, h.seat_id, user_id=None)
 
         await db.commit()
         return True
@@ -261,7 +261,7 @@ class ReservationService:
         holds = list(result.scalars().all())
         for h in holds:
             h.status = "EXPIRED"
-            await redis_service.release_seat_hold(h.show_id, h.seat_id, h.user_id)
+            await redis_service.release_seat_hold(h.show_id, h.seat_id, user_id=None)
         await db.commit()
 
     @classmethod
@@ -274,7 +274,7 @@ class ReservationService:
         count = len(expired_holds)
         for h in expired_holds:
             h.status = "EXPIRED"
-            await redis_service.release_seat_hold(h.show_id, h.seat_id, h.user_id)
+            await redis_service.release_seat_hold(h.show_id, h.seat_id, user_id=None)
 
         if count > 0:
             await db.commit()

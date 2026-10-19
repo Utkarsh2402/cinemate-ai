@@ -1,10 +1,11 @@
+from typing import Optional
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.schemas.reservation import SeatHoldCreate, SeatHoldBatchResponse, SeatHoldItem
 from app.services.reservation_service import ReservationService
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, get_optional_current_user
 from app.models.user import User
 
 router = APIRouter()
@@ -94,8 +95,9 @@ async def get_seat_hold(
 @router.delete("/{hold_token}")
 async def release_seat_hold(
     hold_token: str,
-    current_user: User = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_optional_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    success = await ReservationService.release_hold(db, hold_token, user_id=current_user.id)
+    user_id = current_user.id if current_user else None
+    success = await ReservationService.release_hold(db, hold_token, user_id=user_id)
     return {"success": success, "message": "Seats released successfully" if success else "No active hold found"}

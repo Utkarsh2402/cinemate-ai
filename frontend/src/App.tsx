@@ -231,7 +231,12 @@ const AppContent: React.FC = () => {
             setActiveCheckout(null);
             setActiveTicket(ticket);
           }}
-          onClose={() => setActiveCheckout(null)}
+          onClose={() => {
+            if (activeCheckout.holdData?.hold_token) {
+              api.releaseHold(activeCheckout.holdData.hold_token).catch(() => {});
+            }
+            setActiveCheckout(null);
+          }}
         />
       )}
 

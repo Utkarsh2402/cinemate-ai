@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     # Business Rules
-    SEAT_HOLD_DURATION_SECONDS: int = 600  # 10 minutes hold
+    SEAT_HOLD_DURATION_SECONDS: int = 300  # 5 minutes hold (prevents prolonged seat lockouts)
     MAX_SEATS_PER_BOOKING: int = 10
     CANCELLATION_WINDOW_HOURS: int = 2  # Cancellations allowed up to 2 hours before showtime
     REFUND_PERCENTAGE: float = 100.0
