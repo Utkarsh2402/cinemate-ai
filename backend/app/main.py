@@ -46,9 +46,12 @@ async def lifespan(app: FastAPI):
     await redis_service.connect()
 
     # 2. Ensure database tables exist
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    logger.info("Database schema verified.")
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        logger.info("Database schema verified.")
+    except Exception as e:
+        logger.error("Database connection/init warning during startup: %s", e, exc_info=True)
 
     # 3. Check and seed demo inventory if empty
     try:
