@@ -256,3 +256,32 @@ export interface MovieDiscoveryResult {
   internet_suggestions: InternetMovieSuggestion[];
   matched_show_count: number;
 }
+
+export interface MovieSuggestion {
+  id: string;
+  movie_id?: string;
+  movie_title: string;
+  movie_poster?: string;
+  suggested_by: string;
+  description: string;
+  likes: string[];
+  created_at: string;
+}
+
+export interface GroupSessionMember {
+  id: string;
+  name: string;
+  preferred_genres: string[];
+  preferred_languages: string[];
+  max_budget: number;
+}
+
+export interface GroupSessionData {
+  id: string;
+  name: string;
+  invite_code: string;
+  status: string;
+  members: GroupSessionMember[];
+  movie_suggestions?: MovieSuggestion[];
+  consensus_result?: GroupPlannerResult;
+}

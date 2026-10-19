@@ -13,8 +13,13 @@ import {
   Trophy,
   AlertCircle,
   LogOut,
+  Film,
+  MessageSquareQuote,
+  Heart,
+  Send,
+  MessageCircle,
 } from 'lucide-react';
-import type { GroupPlannerResult } from '../types';
+import type { GroupPlannerResult, Movie, MovieSuggestion } from '../types';
 import { api } from '../api';
 import { buildInviteUrl, clearRoomCodeFromUrl, getRoomCodeFromUrl } from '../utils/url';
 
@@ -49,6 +54,33 @@ export const GroupPlannerModal: React.FC<GroupPlannerModalProps> = ({
   const [isCreatingSession, setIsCreatingSession] = useState<boolean>(false);
   const [isCopied, setIsCopied] = useState<boolean>(false);
   const [isHost, setIsHost] = useState<boolean>(false);
+
+  // Movie Suggestions with Descriptions State
+  const [activeMovies, setActiveMovies] = useState<Movie[]>([]);
+  const [selectedMovieForSuggestion, setSelectedMovieForSuggestion] = useState<string>('');
+  const [customMovieTitle, setCustomMovieTitle] = useState<string>('');
+  const [movieDescription, setMovieDescription] = useState<string>('');
+  const [isAddingSuggestion, setIsAddingSuggestion] = useState<boolean>(false);
+  const [showAddSuggestionDrawer, setShowAddSuggestionDrawer] = useState<boolean>(false);
+
+  // Helper to ensure clean 4-digit code display without CNM- prefixes or dashes
+  const formatDisplayCode = (rawCode: string) => {
+    if (!rawCode) return '----';
+    return rawCode.replace(/^CNM-/i, '').replace(/[\s-]/g, '').trim();
+  };
+
+  // Fetch active movies for suggestions
+  useEffect(() => {
+    api.getMovies()
+      .then((res) => {
+        const movies = res.items || [];
+        setActiveMovies(movies);
+        if (movies.length > 0) {
+          setSelectedMovieForSuggestion(movies[0].id);
+        }
+      })
+      .catch((err) => console.error('Failed to load movies:', err));
+  }, []);
 
   // Connection & Error States
   const [isLoadingRoom, setIsLoadingRoom] = useState<boolean>(false);
@@ -218,9 +250,9 @@ export const GroupPlannerModal: React.FC<GroupPlannerModalProps> = ({
     }
   };
 
-  // Copy Invite Link to Clipboard
+  // Copy Invite Link to Clipboard (Clean 4-digit numeric code)
   const getInviteUrl = () => {
-    return buildInviteUrl(sessionCode);
+    return buildInviteUrl(formatDisplayCode(sessionCode));
   };
 
   const handleCopyLink = () => {
@@ -231,10 +263,88 @@ export const GroupPlannerModal: React.FC<GroupPlannerModalProps> = ({
 
   const handleShareWhatsApp = () => {
     const roomTitle = sessionData?.name || sessionName;
+    const cleanCode = formatDisplayCode(sessionCode);
     const text = encodeURIComponent(
-      `🍿 Hey! Vote for our movie night "${roomTitle}" on CineMate AI! Tap to connect to Room #${sessionCode}: ${getInviteUrl()}`
+      `🍿 Hey! Join our movie night "${roomTitle}" on CineMate AI! Use 4-digit code: *${cleanCode}* or tap here to join:\n${getInviteUrl()}`
     );
     window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
+  };
+
+  // Add Movie Suggestion with Description
+  const handleAddMovieSuggestion = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanCode = formatDisplayCode(sessionCode);
+    if (!cleanCode) return;
+
+    const currentMemberName = joinName.trim() || hostName.trim() || localStorage.getItem('cinemate_member_name') || 'Friend';
+
+    if (!movieDescription.trim()) {
+      alert('Please add a description/pitch explaining why you want to watch this movie!');
+      return;
+    }
+
+    let movieTitle = '';
+    let moviePoster: string | undefined = undefined;
+    let movieId: string | undefined = undefined;
+
+    if (selectedMovieForSuggestion === 'OTHER') {
+      if (!customMovieTitle.trim()) {
+        alert('Please enter a movie title');
+        return;
+      }
+      movieTitle = customMovieTitle.trim();
+    } else {
+      const found = activeMovies.find((m) => m.id === selectedMovieForSuggestion);
+      if (found) {
+        movieId = found.id;
+        movieTitle = found.title;
+        moviePoster = found.poster_url;
+      } else {
+        movieTitle = customMovieTitle.trim() || 'Selected Film';
+      }
+    }
+
+    try {
+      setIsAddingSuggestion(true);
+      const updated = await api.addMovieSuggestion(cleanCode, {
+        movie_id: movieId,
+        movie_title: movieTitle,
+        movie_poster: moviePoster,
+        suggested_by: currentMemberName,
+        description: movieDescription.trim(),
+      });
+      setSessionData(updated);
+      setMovieDescription('');
+      setCustomMovieTitle('');
+      setShowAddSuggestionDrawer(false);
+    } catch (err: any) {
+      alert(err.message || 'Failed to add movie suggestion');
+    } finally {
+      setIsAddingSuggestion(false);
+    }
+  };
+
+  const handleToggleLike = async (suggestionId: string) => {
+    const cleanCode = formatDisplayCode(sessionCode);
+    if (!cleanCode) return;
+    const currentMemberName = joinName.trim() || hostName.trim() || localStorage.getItem('cinemate_member_name') || 'Friend';
+    try {
+      const updated = await api.toggleSuggestionLike(cleanCode, suggestionId, currentMemberName);
+      setSessionData(updated);
+    } catch (err) {
+      console.error('Failed to toggle like:', err);
+    }
+  };
+
+  const handleDeleteSuggestion = async (suggestionId: string) => {
+    const cleanCode = formatDisplayCode(sessionCode);
+    if (!cleanCode) return;
+    try {
+      const updated = await api.deleteMovieSuggestion(cleanCode, suggestionId);
+      setSessionData(updated);
+    } catch (err) {
+      console.error('Failed to delete suggestion:', err);
+    }
   };
 
   // Quick local calculations
@@ -376,7 +486,7 @@ export const GroupPlannerModal: React.FC<GroupPlannerModalProps> = ({
                   <div className="text-center">
                     <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 text-amber-900 border border-amber-300 text-xs font-black tracking-wide mb-3">
                       <Smartphone className="w-3.5 h-3.5 text-amber-700" />
-                      Room Code: {sessionData.invite_code} • Live Invite
+                      Room Code: {formatDisplayCode(sessionData.invite_code)} • Live Invite
                     </div>
                     <h3 className="text-2xl font-black text-slate-900">
                       Join "{sessionData.name}"
@@ -499,8 +609,8 @@ export const GroupPlannerModal: React.FC<GroupPlannerModalProps> = ({
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
-                      <div className="px-4 py-2 bg-white rounded-xl border border-slate-300 font-mono text-xl font-black text-amber-600 tracking-widest shadow-sm">
-                        {sessionCode}
+                      <div className="px-5 py-2.5 bg-white rounded-2xl border-2 border-amber-300 font-mono text-2xl font-black text-amber-600 tracking-[0.25em] shadow-sm">
+                        {formatDisplayCode(sessionCode)}
                       </div>
                       <button
                         onClick={handleCopyLink}
@@ -568,6 +678,194 @@ export const GroupPlannerModal: React.FC<GroupPlannerModalProps> = ({
                         </div>
                       ))}
                     </div>
+                  </div>
+
+                  {/* Group Movie Picks & Pitches (Member Descriptions) */}
+                  <div className="p-5 rounded-3xl bg-slate-50 border border-slate-200 space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <Film className="w-4 h-4 text-rose-600" />
+                          <h4 className="text-sm font-black text-slate-900">
+                            Pitched Movies & Member Descriptions ({sessionData?.movie_suggestions?.length || 0})
+                          </h4>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          Suggest a movie you want to watch and tell your friends why they should vote for it!
+                        </p>
+                      </div>
+
+                      <button
+                        onClick={() => setShowAddSuggestionDrawer(!showAddSuggestionDrawer)}
+                        className="self-start sm:self-auto px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white flex items-center gap-1.5 transition-colors shadow-sm"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>{showAddSuggestionDrawer ? 'Close Form' : 'Pitch a Movie & Add Description'}</span>
+                      </button>
+                    </div>
+
+                    {/* Add Suggestion Form Drawer */}
+                    {showAddSuggestionDrawer && (
+                      <form
+                        onSubmit={handleAddMovieSuggestion}
+                        className="p-4 rounded-2xl bg-white border border-rose-200 shadow-sm space-y-3.5 animate-fadeIn"
+                      >
+                        <div className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+                          <MessageSquareQuote className="w-4 h-4 text-rose-600" />
+                          <span>Suggest a Movie with Your Custom Description</span>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-[11px] font-bold text-slate-600 block mb-1">Select Movie</label>
+                            <select
+                              value={selectedMovieForSuggestion}
+                              onChange={(e) => setSelectedMovieForSuggestion(e.target.value)}
+                              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-900 focus:outline-none focus:border-rose-500"
+                            >
+                              {activeMovies.map((m) => (
+                                <option key={m.id} value={m.id}>
+                                  {m.title} ({m.rating ? `★ ${m.rating}` : 'Running'})
+                                </option>
+                              ))}
+                              <option value="OTHER">+ Other Film (Type Custom Title)</option>
+                            </select>
+                          </div>
+
+                          {selectedMovieForSuggestion === 'OTHER' && (
+                            <div>
+                              <label className="text-[11px] font-bold text-slate-600 block mb-1">Movie Title</label>
+                              <input
+                                type="text"
+                                value={customMovieTitle}
+                                onChange={(e) => setCustomMovieTitle(e.target.value)}
+                                placeholder="Enter movie title (e.g. Interstellar)"
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-900 focus:outline-none focus:border-rose-500"
+                              />
+                            </div>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-600 block mb-1">
+                            Your Pitch / Description for this Movie *
+                          </label>
+                          <textarea
+                            rows={3}
+                            value={movieDescription}
+                            onChange={(e) => setMovieDescription(e.target.value)}
+                            placeholder="Why should the group watch this? (e.g. 'Must watch in IMAX! The soundtrack and visuals are legendary, plus tickets are ₹250 this Friday!')"
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500 leading-relaxed"
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-end gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => setShowAddSuggestionDrawer(false)}
+                            className="px-3.5 py-1.5 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-200 transition-colors"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="submit"
+                            disabled={isAddingSuggestion || !movieDescription.trim()}
+                            className="px-4 py-2 rounded-xl text-xs font-black bg-rose-600 hover:bg-rose-700 text-white disabled:opacity-50 flex items-center gap-1.5 shadow-md shadow-rose-200 transition-all"
+                          >
+                            {isAddingSuggestion ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                            <span>Post Movie & Description</span>
+                          </button>
+                        </div>
+                      </form>
+                    )}
+
+                    {/* Pitched Movie Cards */}
+                    {sessionData?.movie_suggestions && sessionData.movie_suggestions.length > 0 ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                        {sessionData.movie_suggestions.map((sug: MovieSuggestion) => {
+                          const currentMemberName = joinName.trim() || hostName.trim() || localStorage.getItem('cinemate_member_name') || 'Friend';
+                          const hasLiked = sug.likes?.includes(currentMemberName);
+                          const isAuthor = sug.suggested_by?.toLowerCase() === currentMemberName.toLowerCase() || isHost;
+
+                          return (
+                            <div
+                              key={sug.id}
+                              className="p-3.5 rounded-2xl bg-white border border-slate-200 hover:border-amber-300 transition-all flex flex-col justify-between space-y-3 shadow-xs"
+                            >
+                              <div className="flex gap-3 items-start">
+                                {sug.movie_poster ? (
+                                  <img
+                                    src={sug.movie_poster}
+                                    alt={sug.movie_title}
+                                    referrerPolicy="no-referrer"
+                                    className="w-14 h-20 object-cover rounded-xl bg-slate-200 flex-shrink-0 shadow-sm border border-slate-200"
+                                  />
+                                ) : (
+                                  <div className="w-14 h-20 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center flex-shrink-0">
+                                    <Film className="w-6 h-6" />
+                                  </div>
+                                )}
+
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between gap-1">
+                                    <h5 className="font-extrabold text-sm text-slate-900 truncate">{sug.movie_title}</h5>
+                                    {isAuthor && (
+                                      <button
+                                        onClick={() => handleDeleteSuggestion(sug.id)}
+                                        className="text-slate-400 hover:text-rose-600 p-1 transition-colors"
+                                        title="Remove your pitch"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    )}
+                                  </div>
+
+                                  <div className="text-[11px] text-slate-500 font-semibold mb-1 flex items-center gap-1.5">
+                                    <span>Pitched by</span>
+                                    <span className="font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                                      {sug.suggested_by}
+                                    </span>
+                                  </div>
+
+                                  {/* Speech bubble / Description */}
+                                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 italic leading-snug relative">
+                                    <MessageSquareQuote className="w-3.5 h-3.5 text-rose-500 inline mr-1 -mt-0.5" />
+                                    <span>"{sug.description}"</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-[11px]">
+                                <button
+                                  onClick={() => handleToggleLike(sug.id)}
+                                  className={`flex items-center gap-1.5 px-3 py-1 rounded-lg font-bold transition-all ${
+                                    hasLiked
+                                      ? 'bg-rose-100 text-rose-700 border border-rose-300'
+                                      : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200'
+                                  }`}
+                                  title="Vote / Like this movie choice"
+                                >
+                                  <Heart className={`w-3.5 h-3.5 ${hasLiked ? 'fill-rose-600 text-rose-600' : 'text-slate-400'}`} />
+                                  <span>{sug.likes?.length || 0} Votes</span>
+                                </button>
+
+                                <span className="text-[10px] text-slate-400">
+                                  {sug.likes && sug.likes.length > 0 ? `Voted by ${sug.likes.join(', ')}` : 'No votes yet'}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="py-6 px-4 rounded-xl bg-white border border-dashed border-slate-300 text-center space-y-1.5">
+                        <MessageCircle className="w-6 h-6 text-slate-400 mx-auto" />
+                        <p className="text-xs font-bold text-slate-700">No movies pitched yet</p>
+                        <p className="text-[11px] text-slate-500 max-w-sm mx-auto">
+                          Tap "+ Pitch a Movie & Add Description" above to suggest your favorite film and explain why your friends should watch it!
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   {/* Decision Action */}
@@ -889,6 +1187,24 @@ export const GroupPlannerModal: React.FC<GroupPlannerModalProps> = ({
                             </li>
                           ))}
                         </ul>
+
+                        {/* Member Pitch / Description if available */}
+                        {(() => {
+                          const matchedSuggestion = sessionData?.movie_suggestions?.find(
+                            (s: MovieSuggestion) =>
+                              (s.movie_id && s.movie_id === rec.movie_id) ||
+                              s.movie_title.toLowerCase() === rec.title.toLowerCase()
+                          );
+                          if (!matchedSuggestion) return null;
+                          return (
+                            <div className="mt-1.5 p-1.5 rounded-lg bg-amber-50 border border-amber-200 text-[10px] text-amber-900 flex items-start gap-1">
+                              <MessageSquareQuote className="w-3 h-3 text-amber-600 flex-shrink-0 mt-0.5" />
+                              <span>
+                                <strong className="font-bold">{matchedSuggestion.suggested_by}:</strong> "{matchedSuggestion.description}"
+                              </span>
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
 

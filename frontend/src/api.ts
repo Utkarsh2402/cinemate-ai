@@ -7,6 +7,7 @@ import type {
   BookingDetail,
   TicketDetail,
   GroupPlannerResult,
+  GroupSessionData,
   AdminAnalytics,
   MovieDiscoveryResult,
 } from './types';
@@ -271,8 +272,37 @@ export const api = {
   },
 
   decideGroupSession: (inviteCode: string) => {
-    return request<any>(`/groups/sessions/${inviteCode}/decide`, {
+    return request<GroupSessionData>(`/groups/sessions/${inviteCode}/decide`, {
       method: 'POST',
+    });
+  },
+
+  addMovieSuggestion: (
+    inviteCode: string,
+    data: {
+      movie_id?: string;
+      movie_title: string;
+      movie_poster?: string;
+      suggested_by: string;
+      description: string;
+    }
+  ) => {
+    return request<GroupSessionData>(`/groups/sessions/${inviteCode}/movie-suggestions`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  toggleSuggestionLike: (inviteCode: string, suggestionId: string, memberName: string) => {
+    return request<GroupSessionData>(`/groups/sessions/${inviteCode}/movie-suggestions/${suggestionId}/like`, {
+      method: 'POST',
+      body: JSON.stringify({ member_name: memberName }),
+    });
+  },
+
+  deleteMovieSuggestion: (inviteCode: string, suggestionId: string) => {
+    return request<GroupSessionData>(`/groups/sessions/${inviteCode}/movie-suggestions/${suggestionId}`, {
+      method: 'DELETE',
     });
   },
 };

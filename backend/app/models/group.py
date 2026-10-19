@@ -13,6 +13,7 @@ class GroupPlan(Base, UUIDMixin, TimestampMixin):
     invite_code: Mapped[str] = mapped_column(String(20), unique=True, index=True, nullable=False)
     status: Mapped[str] = mapped_column(String(30), default="PLANNING", nullable=False)  # PLANNING, DECIDED, ARCHIVED
     selected_movie_id: Mapped[Optional[str]] = mapped_column(String(36), ForeignKey("movies.id", ondelete="SET NULL"), nullable=True)
+    movie_suggestions: Mapped[List[dict]] = mapped_column(JSON, default=list, nullable=False)
 
     # Relationships
     members: Mapped[List["GroupMember"]] = relationship("GroupMember", back_populates="group", cascade="all, delete-orphan")

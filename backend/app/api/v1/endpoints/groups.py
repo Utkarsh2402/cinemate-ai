@@ -1,11 +1,13 @@
 import secrets
 import string
 from typing import List, Optional
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.database import get_db
 from app.models.group import GroupPlan, GroupMember, GroupVote
@@ -32,6 +34,18 @@ class JoinSessionRequest(BaseModel):
     max_budget: float = Field(default=400.0, ge=100.0, le=2000.0, examples=[450.0])
 
 
+class MovieSuggestionCreateRequest(BaseModel):
+    movie_id: Optional[str] = None
+    movie_title: str = Field(..., min_length=1, max_length=150)
+    movie_poster: Optional[str] = None
+    suggested_by: str = Field(..., min_length=1, max_length=100)
+    description: str = Field(..., min_length=1, max_length=1000)
+
+
+class ToggleLikeRequest(BaseModel):
+    member_name: str = Field(..., min_length=1, max_length=100)
+
+
 class GroupMemberResponse(BaseModel):
     id: str
     name: str
@@ -48,17 +62,30 @@ class GroupSessionResponse(BaseModel):
     invite_code: str
     status: str
     members: List[GroupMemberResponse]
+    movie_suggestions: List[dict] = Field(default_factory=list)
     consensus_result: Optional[GroupPlannerResponse] = None
 
 
 def generate_invite_code() -> str:
-    # 4-digit numeric code between 1000 and 9999
+    # Strictly 4-digit numeric code between 1000 and 9999
     return str(secrets.randbelow(9000) + 1000)
+
+
+def _build_session_response(group: GroupPlan, consensus: Optional[GroupPlannerResponse] = None) -> GroupSessionResponse:
+    return GroupSessionResponse(
+        id=group.id,
+        name=group.name,
+        invite_code=group.invite_code,
+        status=group.status,
+        members=[GroupMemberResponse.model_validate(m) for m in group.members],
+        movie_suggestions=group.movie_suggestions or [],
+        consensus_result=consensus,
+    )
 
 
 async def _get_group_by_code(invite_code: str, db: AsyncSession) -> Optional[GroupPlan]:
     code = invite_code.strip().upper()
-    clean_code = code.replace("CNM-", "")
+    clean_code = code.replace("CNM-", "").replace(" ", "").replace("-", "")
     stmt = (
         select(GroupPlan)
         .options(selectinload(GroupPlan.members))
@@ -68,7 +95,20 @@ async def _get_group_by_code(invite_code: str, db: AsyncSession) -> Optional[Gro
             | (GroupPlan.invite_code == f"CNM-{clean_code}")
         )
     )
-    return (await db.execute(stmt)).scalar_one_or_none()
+    group = (await db.execute(stmt)).scalar_one_or_none()
+    if group:
+        # Self-heal legacy codes: if invite_code is not strictly a 4-digit number, upgrade it in DB
+        if not group.invite_code.isdigit() or len(group.invite_code) != 4:
+            new_code = generate_invite_code()
+            for _ in range(10):
+                existing = await db.execute(select(GroupPlan).where(GroupPlan.invite_code == new_code))
+                if not existing.scalar_one_or_none():
+                    break
+                new_code = generate_invite_code()
+            group.invite_code = new_code
+            await db.commit()
+            await db.refresh(group)
+    return group
 
 
 @router.post("/sessions", response_model=GroupSessionResponse, status_code=status.HTTP_201_CREATED)
@@ -119,13 +159,7 @@ async def create_group_session(data: CreateSessionRequest, db: AsyncSession = De
     )
     group_full = (await db.execute(group_stmt)).scalar_one()
 
-    return GroupSessionResponse(
-        id=group_full.id,
-        name=group_full.name,
-        invite_code=group_full.invite_code,
-        status=group_full.status,
-        members=[GroupMemberResponse.model_validate(m) for m in group_full.members],
-    )
+    return _build_session_response(group_full)
 
 
 @router.get("/sessions/{invite_code}", response_model=GroupSessionResponse)
@@ -153,14 +187,7 @@ async def get_group_session(invite_code: str, db: AsyncSession = Depends(get_db)
         )
         consensus = await AIService.plan_group_movie(db, data=planner_req)
 
-    return GroupSessionResponse(
-        id=group.id,
-        name=group.name,
-        invite_code=group.invite_code,
-        status=group.status,
-        members=[GroupMemberResponse.model_validate(m) for m in group.members],
-        consensus_result=consensus,
-    )
+    return _build_session_response(group, consensus)
 
 
 @router.post("/sessions/{invite_code}/join", response_model=GroupSessionResponse)
@@ -194,13 +221,7 @@ async def join_group_session(invite_code: str, data: JoinSessionRequest, db: Asy
     await db.commit()
     await db.refresh(group, ["members"])
 
-    return GroupSessionResponse(
-        id=group.id,
-        name=group.name,
-        invite_code=group.invite_code,
-        status=group.status,
-        members=[GroupMemberResponse.model_validate(m) for m in group.members],
-    )
+    return _build_session_response(group)
 
 
 @router.post("/sessions/{invite_code}/decide", response_model=GroupSessionResponse)
@@ -236,11 +257,100 @@ async def decide_group_session(invite_code: str, db: AsyncSession = Depends(get_
 
     await db.commit()
 
-    return GroupSessionResponse(
-        id=group.id,
-        name=group.name,
-        invite_code=group.invite_code,
-        status=group.status,
-        members=[GroupMemberResponse.model_validate(m) for m in group.members],
-        consensus_result=consensus,
+    return _build_session_response(group, consensus)
+
+
+@router.post("/sessions/{invite_code}/movie-suggestions", response_model=GroupSessionResponse)
+async def add_movie_suggestion(
+    invite_code: str,
+    data: MovieSuggestionCreateRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Allows members in the group to suggest a particular movie and attach their custom description / notes / pitch.
+    """
+    group = await _get_group_by_code(invite_code, db)
+    if not group:
+        raise HTTPException(status_code=404, detail=f"Group session with code '{invite_code}' not found.")
+
+    current_suggestions = list(group.movie_suggestions or [])
+    # Check if a suggestion for the same movie already exists
+    existing = next(
+        (s for s in current_suggestions if s.get("movie_title", "").strip().lower() == data.movie_title.strip().lower()),
+        None,
     )
+    if existing:
+        existing["description"] = data.description.strip()
+        existing["suggested_by"] = data.suggested_by.strip()
+        if data.movie_poster:
+            existing["movie_poster"] = data.movie_poster
+    else:
+        new_item = {
+            "id": f"sug_{secrets.token_hex(4)}",
+            "movie_id": data.movie_id,
+            "movie_title": data.movie_title.strip(),
+            "movie_poster": data.movie_poster,
+            "suggested_by": data.suggested_by.strip(),
+            "description": data.description.strip(),
+            "likes": [data.suggested_by.strip()],
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        current_suggestions.insert(0, new_item)
+
+    group.movie_suggestions = current_suggestions
+    flag_modified(group, "movie_suggestions")
+    await db.commit()
+    await db.refresh(group, ["members"])
+
+    return _build_session_response(group)
+
+
+@router.post("/sessions/{invite_code}/movie-suggestions/{suggestion_id}/like", response_model=GroupSessionResponse)
+async def toggle_suggestion_like(
+    invite_code: str,
+    suggestion_id: str,
+    data: ToggleLikeRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    group = await _get_group_by_code(invite_code, db)
+    if not group:
+        raise HTTPException(status_code=404, detail=f"Group session with code '{invite_code}' not found.")
+
+    current_suggestions = list(group.movie_suggestions or [])
+    target = next((s for s in current_suggestions if s.get("id") == suggestion_id), None)
+    if not target:
+        raise HTTPException(status_code=404, detail="Movie suggestion not found in this group.")
+
+    likes = list(target.get("likes") or [])
+    user_name = data.member_name.strip()
+    if user_name in likes:
+        likes.remove(user_name)
+    else:
+        likes.append(user_name)
+    target["likes"] = likes
+
+    group.movie_suggestions = current_suggestions
+    flag_modified(group, "movie_suggestions")
+    await db.commit()
+    await db.refresh(group, ["members"])
+
+    return _build_session_response(group)
+
+
+@router.delete("/sessions/{invite_code}/movie-suggestions/{suggestion_id}", response_model=GroupSessionResponse)
+async def delete_movie_suggestion(
+    invite_code: str,
+    suggestion_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    group = await _get_group_by_code(invite_code, db)
+    if not group:
+        raise HTTPException(status_code=404, detail=f"Group session with code '{invite_code}' not found.")
+
+    current_suggestions = [s for s in (group.movie_suggestions or []) if s.get("id") != suggestion_id]
+    group.movie_suggestions = current_suggestions
+    flag_modified(group, "movie_suggestions")
+    await db.commit()
+    await db.refresh(group, ["members"])
+
+    return _build_session_response(group)

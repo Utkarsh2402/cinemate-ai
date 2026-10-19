@@ -51,3 +51,48 @@ async def test_create_group_session_4_digit_numeric(client: AsyncClient, seed_te
     decide_data = decide_res.json()
     assert decide_data["status"] == "DECIDED"
     assert decide_data["consensus_result"] is not None
+
+
+@pytest.mark.asyncio
+async def test_movie_suggestions_with_descriptions(client: AsyncClient, seed_test_data):
+    # 1. Create group session
+    create_res = await client.post(
+        "/api/v1/groups/sessions",
+        json={"name": "Cinema Lovers", "host_name": "Rohan"},
+    )
+    assert create_res.status_code == 201
+    invite_code = create_res.json()["invite_code"]
+
+    # 2. Add movie suggestion with description
+    sug_res = await client.post(
+        f"/api/v1/groups/sessions/{invite_code}/movie-suggestions",
+        json={
+            "movie_title": "Dune: Part Two",
+            "suggested_by": "Rohan",
+            "description": "Must watch in IMAX! The soundtrack and visual effects are unbelievable.",
+            "movie_poster": "https://example.com/dune.jpg",
+        },
+    )
+    assert sug_res.status_code == 200
+    sug_data = sug_res.json()
+    assert len(sug_data["movie_suggestions"]) == 1
+    item = sug_data["movie_suggestions"][0]
+    assert item["movie_title"] == "Dune: Part Two"
+    assert item["suggested_by"] == "Rohan"
+    assert item["description"] == "Must watch in IMAX! The soundtrack and visual effects are unbelievable."
+    sug_id = item["id"]
+
+    # 3. Toggle like
+    like_res = await client.post(
+        f"/api/v1/groups/sessions/{invite_code}/movie-suggestions/{sug_id}/like",
+        json={"member_name": "Kavita"},
+    )
+    assert like_res.status_code == 200
+    assert "Kavita" in like_res.json()["movie_suggestions"][0]["likes"]
+
+    # 4. Delete suggestion
+    del_res = await client.delete(
+        f"/api/v1/groups/sessions/{invite_code}/movie-suggestions/{sug_id}",
+    )
+    assert del_res.status_code == 200
+    assert len(del_res.json()["movie_suggestions"]) == 0
