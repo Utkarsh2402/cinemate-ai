@@ -753,6 +753,9 @@ with gr.Blocks(title="CineMate AI — Cinema Reservation & Discovery Platform", 
             health_json = gr.JSON(value=check_system_diagnostics())
             refresh_health_btn.click(fn=check_system_diagnostics, inputs=[], outputs=[health_json])
 
+# Expose ASGI application instance for any WSGI/ASGI runners (gunicorn/uvicorn)
+app = demo.app
+
 # ==============================================================================
 # 10. ENTRYPOINT LAUNCHER FOR HUGGING FACE SPACES
 # ==============================================================================
@@ -760,3 +763,4 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 7860))
     print(f"🎬 CineMate AI launching on port {port}...")
     demo.launch(server_name="0.0.0.0", server_port=port, share=False)
+
