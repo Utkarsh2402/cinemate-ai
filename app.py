@@ -8,6 +8,7 @@ import sys
 import json
 import time
 import uuid
+import secrets
 import hashlib
 import io
 import base64
@@ -134,8 +135,8 @@ MOVIES_DATA = [
 SEAT_HOLDS = {}  # key: f"{show_id}:{seat_id}" -> {"user_id": str, "expires_at": float, "hold_token": str}
 BOOKED_SEATS = set()  # set of f"{show_id}:{seat_id}"
 PLANNER_ROOMS = {
-    "984210": {
-        "room_pin": "984210",
+    "9842": {
+        "room_pin": "9842",
         "host": "Utkarsh",
         "created_at": datetime.now(timezone.utc).isoformat(),
         "participants": ["Utkarsh", "Aarav", "Neha", "Rohan"],
@@ -424,7 +425,7 @@ Target Coordinate: **Seat {seat_id}** (Show ID: `{show_id}`)
 # 6. TAB 3: MULTIPLAYER GROUP PLANNER
 # ==============================================================================
 def create_group_room(host_name: str):
-    pin = str(uuid.uuid4().int)[:6]
+    pin = str(secrets.randbelow(9000) + 1000)
     PLANNER_ROOMS[pin] = {
         "room_pin": pin,
         "host": host_name or "Host",
@@ -432,7 +433,7 @@ def create_group_room(host_name: str):
         "participants": [host_name or "Host"],
         "votes": {},
     }
-    invite_url = f"https://cinemate.ai/planner/room?pin={pin}"
+    invite_url = f"/?room={pin}"
     status = f"🎉 **Session Created!** Room PIN: `{pin}` | Invite Link: `{invite_url}`"
     return pin, invite_url, status, get_room_summary(pin)
 
@@ -689,7 +690,7 @@ with gr.Blocks(title="CineMate AI — Cinema Reservation & Discovery Platform", 
                     create_room_btn = gr.Button("✨ Create New Group Session", variant="primary")
                     
                     gr.Markdown("---")
-                    room_pin_input = gr.Textbox(label="Room PIN", value="984210")
+                    room_pin_input = gr.Textbox(label="4-Digit Room PIN", value="9842")
                     voter_name_input = gr.Textbox(label="Participant Name", value="Kavita")
                     vote_choice = gr.Dropdown(
                         label="Vote For Movie",
@@ -700,7 +701,7 @@ with gr.Blocks(title="CineMate AI — Cinema Reservation & Discovery Platform", 
                     
                 with gr.Column():
                     session_info = gr.Markdown("Join or create a session to see live consensus.")
-                    room_details = gr.Markdown(value=get_room_summary("984210"))
+                    room_details = gr.Markdown(value=get_room_summary("9842"))
 
             create_room_btn.click(
                 fn=create_group_room,

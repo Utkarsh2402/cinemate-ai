@@ -21,15 +21,15 @@ router = APIRouter()
 
 
 class CreateSessionRequest(BaseModel):
-    name: str = Field(..., min_length=2, max_length=100, example="Friday Movie Night")
+    name: str = Field(..., min_length=2, max_length=100, examples=["Friday Movie Night"])
     host_name: Optional[str] = "Host"
 
 
 class JoinSessionRequest(BaseModel):
-    name: str = Field(..., min_length=1, max_length=100, example="Rohan")
-    preferred_genres: List[str] = Field(default_factory=list, example=["Action", "Comedy"])
-    preferred_languages: List[str] = Field(default_factory=lambda: ["Hindi"], example=["Hindi"])
-    max_budget: float = Field(default=400.0, ge=100.0, le=2000.0, example=450.0)
+    name: str = Field(..., min_length=1, max_length=100, examples=["Rohan"])
+    preferred_genres: List[str] = Field(default_factory=list, examples=[["Action", "Comedy"]])
+    preferred_languages: List[str] = Field(default_factory=lambda: ["Hindi"], examples=[["Hindi"]])
+    max_budget: float = Field(default=400.0, ge=100.0, le=2000.0, examples=[450.0])
 
 
 class GroupMemberResponse(BaseModel):
@@ -52,9 +52,23 @@ class GroupSessionResponse(BaseModel):
 
 
 def generate_invite_code() -> str:
-    chars = string.ascii_uppercase + string.digits
-    # Generate 6-char code like CNM-9284
-    return f"CNM-{''.join(secrets.choice(chars) for _ in range(4))}"
+    # 4-digit numeric code between 1000 and 9999
+    return str(secrets.randbelow(9000) + 1000)
+
+
+async def _get_group_by_code(invite_code: str, db: AsyncSession) -> Optional[GroupPlan]:
+    code = invite_code.strip().upper()
+    clean_code = code.replace("CNM-", "")
+    stmt = (
+        select(GroupPlan)
+        .options(selectinload(GroupPlan.members))
+        .where(
+            (GroupPlan.invite_code == code)
+            | (GroupPlan.invite_code == clean_code)
+            | (GroupPlan.invite_code == f"CNM-{clean_code}")
+        )
+    )
+    return (await db.execute(stmt)).scalar_one_or_none()
 
 
 @router.post("/sessions", response_model=GroupSessionResponse, status_code=status.HTTP_201_CREATED)
@@ -68,9 +82,9 @@ async def create_group_session(data: CreateSessionRequest, db: AsyncSession = De
     invite_code = generate_invite_code()
 
     # Ensure invite_code uniqueness
-    for _ in range(5):
-        existing = await db.execute(select(GroupPlan).where(GroupPlan.invite_code == invite_code))
-        if not existing.scalar_one_or_none():
+    for _ in range(10):
+        existing = await _get_group_by_code(invite_code, db)
+        if not existing:
             break
         invite_code = generate_invite_code()
 
@@ -116,13 +130,7 @@ async def create_group_session(data: CreateSessionRequest, db: AsyncSession = De
 
 @router.get("/sessions/{invite_code}", response_model=GroupSessionResponse)
 async def get_group_session(invite_code: str, db: AsyncSession = Depends(get_db)):
-    code = invite_code.strip().upper()
-    stmt = (
-        select(GroupPlan)
-        .options(selectinload(GroupPlan.members))
-        .where(GroupPlan.invite_code == code)
-    )
-    group = (await db.execute(stmt)).scalar_one_or_none()
+    group = await _get_group_by_code(invite_code, db)
     if not group:
         raise HTTPException(status_code=404, detail=f"Group session with code '{invite_code}' not found.")
 
@@ -157,13 +165,7 @@ async def get_group_session(invite_code: str, db: AsyncSession = Depends(get_db)
 
 @router.post("/sessions/{invite_code}/join", response_model=GroupSessionResponse)
 async def join_group_session(invite_code: str, data: JoinSessionRequest, db: AsyncSession = Depends(get_db)):
-    code = invite_code.strip().upper()
-    stmt = (
-        select(GroupPlan)
-        .options(selectinload(GroupPlan.members))
-        .where(GroupPlan.invite_code == code)
-    )
-    group = (await db.execute(stmt)).scalar_one_or_none()
+    group = await _get_group_by_code(invite_code, db)
     if not group:
         raise HTTPException(status_code=404, detail=f"Group session with code '{invite_code}' not found.")
 
@@ -186,31 +188,24 @@ async def join_group_session(invite_code: str, data: JoinSessionRequest, db: Asy
             max_budget=data.max_budget,
             available_dates=[],
         )
+        group.members.append(new_member)
         db.add(new_member)
 
     await db.commit()
-
-    # Re-fetch
-    refreshed = (await db.execute(stmt)).scalar_one()
+    await db.refresh(group, ["members"])
 
     return GroupSessionResponse(
-        id=refreshed.id,
-        name=refreshed.name,
-        invite_code=refreshed.invite_code,
-        status=refreshed.status,
-        members=[GroupMemberResponse.model_validate(m) for m in refreshed.members],
+        id=group.id,
+        name=group.name,
+        invite_code=group.invite_code,
+        status=group.status,
+        members=[GroupMemberResponse.model_validate(m) for m in group.members],
     )
 
 
 @router.post("/sessions/{invite_code}/decide", response_model=GroupSessionResponse)
 async def decide_group_session(invite_code: str, db: AsyncSession = Depends(get_db)):
-    code = invite_code.strip().upper()
-    stmt = (
-        select(GroupPlan)
-        .options(selectinload(GroupPlan.members))
-        .where(GroupPlan.invite_code == code)
-    )
-    group = (await db.execute(stmt)).scalar_one_or_none()
+    group = await _get_group_by_code(invite_code, db)
     if not group:
         raise HTTPException(status_code=404, detail=f"Group session with code '{invite_code}' not found.")
 

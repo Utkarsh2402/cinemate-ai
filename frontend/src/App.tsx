@@ -15,6 +15,7 @@ import { AdminDashboardModal } from './components/AdminDashboardModal';
 import { AuthModal } from './components/AuthModal';
 import type { Movie, Show, SeatHoldResponse, TicketDetail } from './types';
 import { api } from './api';
+import { getRoomCodeFromUrl, clearRoomCodeFromUrl } from './utils/url';
 import { Film, Filter, RefreshCw } from 'lucide-react';
 
 const AppContent: React.FC = () => {
@@ -35,6 +36,7 @@ const AppContent: React.FC = () => {
   const [isBookingsOpen, setIsBookingsOpen] = useState<boolean>(false);
   const [isAIDiscoveryOpen, setIsAIDiscoveryOpen] = useState<boolean>(false);
   const [isGroupPlannerOpen, setIsGroupPlannerOpen] = useState<boolean>(false);
+  const [initialRoomCode, setInitialRoomCode] = useState<string>('');
   const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
   const [isAuthOpen, setIsAuthOpen] = useState<boolean>(false);
 
@@ -55,6 +57,15 @@ const AppContent: React.FC = () => {
       setIsLoadingMovies(false);
     }
   };
+
+  // Auto-open Group Planner if user arrived via an invite link ?room=CODE or path /room/CODE
+  useEffect(() => {
+    const code = getRoomCodeFromUrl();
+    if (code) {
+      setInitialRoomCode(code);
+      setIsGroupPlannerOpen(true);
+    }
+  }, []);
 
   useEffect(() => {
     fetchMovies();
@@ -249,8 +260,13 @@ const AppContent: React.FC = () => {
       {isGroupPlannerOpen && (
         <GroupPlannerModal
           currentCity={currentCity}
+          initialRoomCode={initialRoomCode}
           onSelectMovieById={handleSelectMovieById}
-          onClose={() => setIsGroupPlannerOpen(false)}
+          onClose={() => {
+            setIsGroupPlannerOpen(false);
+            setInitialRoomCode('');
+            clearRoomCodeFromUrl();
+          }}
         />
       )}
 
